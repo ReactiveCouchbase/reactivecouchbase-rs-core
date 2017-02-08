@@ -14,6 +14,10 @@ object ReactiveCouchbase {
     val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
     new ReactiveCouchbase(actualConfig, ActorSystem("ReactiveCouchbaseSystem", actualConfig.getConfig("akka")))
   }
+  def apply(config: Config, system: ActorSystem): ReactiveCouchbase = {
+    val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
+    new ReactiveCouchbase(actualConfig, system)
+  }
 }
 
 object ReactiveCouchbaseApp extends App {
@@ -32,7 +36,7 @@ object ReactiveCouchbaseApp extends App {
       |    hosts = ["127.0.0.1"]
       |  }
       |}
-    """.stripMargin))
+    """.stripMargin), system)
 
   val bucket = driver.bucket("default")
 
