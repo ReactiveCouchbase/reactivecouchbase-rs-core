@@ -3,16 +3,16 @@ package org.reactivecouchbase.scaladsl
 import java.util.concurrent.Executors
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream.{Materializer, OverflowStrategy}
-import com.couchbase.client.java.{AsyncBucket, CouchbaseAsyncCluster}
+import akka.stream.Materializer
+import akka.stream.scaladsl.Source
+import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
 import com.couchbase.client.java.document.RawJsonDocument
-import com.couchbase.client.java.query.AsyncN1qlQueryRow
 import com.typesafe.config.Config
 import org.reactivecouchbase.scaladsl.Implicits._
 import play.api.libs.json._
-import rx.functions.{Action0, Action1}
+import rx.functions.Func1
+import rx.{Observable, RxReactiveStreams}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -40,14 +40,17 @@ class Bucket(config: BucketConfig) {
   private val defaultWriteSettings: WriteSettings = WriteSettings()
   private val internalExecutionContext = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
 
-  private val cluster: CouchbaseAsyncCluster = CouchbaseAsyncCluster.create(config.hosts:_*)
-  private val futureBucket: Future[AsyncBucket] = config.password
-    .map(p => cluster.openBucket(config.name, p).asFuture)
-    .getOrElse(cluster.openBucket(config.name).asFuture)
-    .flatMap(bucket =>
-      bucket.bucketManager().asFuture
-        .map(_.createN1qlPrimaryIndex(true, false))(internalExecutionContext)
-        .map(_ => bucket)(internalExecutionContext))(internalExecutionContext) // TODO : avoid index creation
+  private val cluster: CouchbaseCluster = CouchbaseCluster.create(config.hosts:_*)
+
+  private val (bucket, asyncBucket, bucketManager, futureBucket) = {
+    val _bucket = config.password
+      .map(p => cluster.openBucket(config.name, p))
+      .getOrElse(cluster.openBucket(config.name))
+    val _bucketManager = _bucket.bucketManager()
+    // TODO : avoid index creation
+    _bucketManager.createN1qlPrimaryIndex(true, false)
+    (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
+  }
 
   // TODO
   // implement other searches
@@ -68,7 +71,11 @@ class Bucket(config: BucketConfig) {
   // getAndLock
   // counter operations
 
-  def close(implicit ec: ExecutionContext): Future[Boolean] = futureBucket.flatMap(_.close().asFuture.map(_.booleanValue()))
+  def close(implicit ec: ExecutionContext): Future[Boolean] = {
+    futureBucket.flatMap(_.close().asFuture.map(_.booleanValue())).andThen {
+      case _ => cluster.disconnect()
+    }
+  }
 
   def manager(implicit ec: ExecutionContext): Future[AsyncBucketManager] = {
     futureBucket.flatMap(b => b.bucketManager().asFuture)
@@ -80,9 +87,9 @@ class Bucket(config: BucketConfig) {
     }
   }
 
-  def remove(key: String)(implicit ec: ExecutionContext): Future[JsValue] = {
+  def remove(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[JsValue] = {
     futureBucket.flatMap { bucket =>
-      bucket.remove(RawJsonDocument.create(key)).asFuture.map(doc => Json.parse(doc.content()))
+      bucket.remove(key, settings.persistTo, settings.replicateTo, classOf[RawJsonDocument]).asFuture.map(doc => Json.parse(doc.content()))
     }
   }
 
@@ -123,32 +130,20 @@ class Bucket(config: BucketConfig) {
 
   def search[T](query: QueryLike, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[T] = {
     SimpleQueryResult(() => {
-      val source = Source.queue[T](10000, OverflowStrategy.fail)
-      val (sourceQueue, future) = source.toMat(Sink.foreach(_ => ()))(Keep.both).run()
-      query match {
+      val obs: Observable[T] = query match {
         case N1qlQuery(n1ql, _) => {
-          futureBucket.flatMap { bucket =>
-            bucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql)).asFuture.map { res =>
-              val rows = res.rows()
-              rows.doOnCompleted(new Action0 {
-                override def call(): Unit = sourceQueue.complete()
-              })
-              rows.doOnNext(new Action1[AsyncN1qlQueryRow] {
-                override def call(t: AsyncN1qlQueryRow): Unit = {
-                  // TODO : better perfs here
-                  val json = Json.parse(t.value().toString)
-                  reader.reads(json) match {
-                    case JsSuccess(s, _) => sourceQueue.offer(s)
-                    case JsError(e) => sourceQueue.fail(new RuntimeException("Error while parsing document")) // TODO : better error
-                  }
-                }
-              })
-            }
-          }
+          asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
+            .flatMap(RxUtils.func1(_.rows()))
+            .map(RxUtils.func1 { t =>
+              reader.reads(Json.parse(t.byteValue())) match {
+                case JsSuccess(s, _) => s
+                case JsError(e) => throw new RuntimeException(s"Error while parsing document : $e") // TODO : better error
+              }
+            })
         }
-        case _ => Source.failed(new UnsupportedOperationException("Query not supported !"))
+        case _ => Observable.error(new UnsupportedOperationException("Query not supported !"))
       }
-      source
+      Source.fromPublisher[T](RxReactiveStreams.toPublisher[T](obs))
     })
   }
 }

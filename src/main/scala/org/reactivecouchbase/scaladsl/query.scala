@@ -10,6 +10,7 @@ sealed trait QueryLike
 
 case class N1qlQuery(n1ql: String, params: Map[String, String] = Map.empty) extends QueryLike
 
+// TODO : work on naming
 trait QueryResult[T] {
   def asSource: Source[T, _]
   def map[U](f: T => U): QueryResult[U] = SimpleQueryResult(() => asSource.map(f))
@@ -17,7 +18,7 @@ trait QueryResult[T] {
   def asPublisher(fanout: Boolean = true)(implicit materializer: Materializer): Publisher[T] = asSource.runWith(Sink.asPublisher(fanout))(materializer)
   def fold[U](zero: U)(reducer: (U, T) => U)(implicit materializer: Materializer): Future[U] = asSource.runFold(zero)(reducer)(materializer)
   def foldAsync[U](zero: U)(reducer: (U, T) => Future[U])(implicit materializer: Materializer): Future[U] = asSource.runFoldAsync(zero)(reducer)(materializer)
-  def asSeq(implicit materializer: Materializer): Future[Seq[T]] = fold(Seq.empty[T])((a, b) => a :+ b)(materializer)
+  def asSeq(implicit materializer: Materializer): Future[Seq[T]] = asSource.runWith(Sink.seq[T])(materializer)
   def one(implicit materializer: Materializer): Future[Option[T]] = asSource.runWith(Sink.headOption)(materializer)
 }
 

@@ -9,6 +9,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-json" % "2.4.10",
   "com.typesafe.akka" %% "akka-actor" % "2.4.11.1",
   "com.typesafe.akka" %% "akka-stream" % "2.4.11.1",
+  "io.reactivex" % "rxjava-reactive-streams" % "1.2.1",
   "org.scalatest" %% "scalatest" % "2.2.4" % "test"
 ) 
 
