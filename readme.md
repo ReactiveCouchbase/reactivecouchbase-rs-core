@@ -55,3 +55,20 @@ object ReactiveCouchbaseTest extends App {
 
 }
 ```
+
+if you want to use it from Play Framework ! you can define a bean to access your buckets like the following :
+
+
+```scala
+@Singleton
+class Couchbase @Inject()(configuration: Configuration, lifecycle: ApplicationLifecycle) {
+
+  private val driver = ReactiveCouchbase(configuration.underlying.getConfig("reactivecouchbase"))
+
+  def bucket(name: String): Bucket = driver.bucket(name)
+
+  lifecycle.addStopHook { () =>
+    driver.terminate()
+  }
+}
+```

@@ -13,6 +13,12 @@ case class N1qlQuery(n1ql: String, params: JsObject = Json.obj()) extends QueryL
   def on(args: JsObject) = copy(params = args)
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+case class SpatialQuery() extends QueryLike
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 case class ViewRow(id: String, key: String, value: Any, doc: JsValue)
 
 case class ViewQuery(query: com.couchbase.client.java.view.ViewQuery) extends QueryLike  {
@@ -20,10 +26,12 @@ case class ViewQuery(query: com.couchbase.client.java.view.ViewQuery) extends Qu
 }
 
 object ViewQuery {
-  def apply(designDoc: String, view: String, f: com.couchbase.client.java.view.ViewQuery => com.couchbase.client.java.view.ViewQuery = identity) = {
+  def apply(designDoc: String, view: String, f: com.couchbase.client.java.view.ViewQuery => com.couchbase.client.java.view.ViewQuery = identity): ViewQuery = {
     ViewQuery(com.couchbase.client.java.view.ViewQuery.from(designDoc, view))
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // TODO : work on naming
 trait QueryResult[T] {

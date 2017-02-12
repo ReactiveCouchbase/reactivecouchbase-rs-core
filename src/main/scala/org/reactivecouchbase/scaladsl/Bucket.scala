@@ -29,10 +29,10 @@ object BucketConfig {
 }
 
 object Bucket {
-  def apply(config: BucketConfig) = new Bucket(config)
+  def apply(config: BucketConfig, onStop: () => Unit) = new Bucket(config, onStop)
 }
 
-class Bucket(config: BucketConfig) {
+class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   private val defaultReads: Reads[JsValue] = Reads.apply(jsv => JsSuccess(jsv))
   private val defaultWrites: Writes[JsValue] = Writes.apply(jsv => jsv)
@@ -100,6 +100,7 @@ class Bucket(config: BucketConfig) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def close()(implicit ec: ExecutionContext): Future[Boolean] = {
+    onStop()
     futureBucket.flatMap(_.close().asFuture.map(_.booleanValue())).andThen {
       case _ => cluster.disconnect()
     }
