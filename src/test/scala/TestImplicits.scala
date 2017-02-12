@@ -1,20 +1,17 @@
 import java.util.concurrent.TimeUnit
 
-import rx.Observable
-import rx.functions.{Action0, Action1}
-
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, Future}
 
 object TestImplicits {
 
-  implicit class EnhancedObject(obj: Any) {
-    def debug: Any = {
+  implicit class EnhancedObject[T](obj: T) {
+    def debug: T = {
       println(if (obj != null) obj.toString else "null")
       obj
     }
 
-    def debug(label: String): Any = {
+    def debug(label: String): T = {
       println(if (obj != null) s"$label: ${obj.toString}" else s"$label: null")
       obj
     }

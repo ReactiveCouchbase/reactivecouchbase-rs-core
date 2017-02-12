@@ -3,7 +3,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.scaladsl.{N1qlQuery, ReactiveCouchbase}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest._
 import play.api.libs.json.Json
 
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
@@ -37,17 +37,28 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     val maybeDoc1 = bucket.get("key1").await.debug("maybeDoc1")
     val maybeDoc2 = bucket.get("key2").await.debug("maybeDoc2")
 
+    maybeDoc1 should be (Some(Json.obj("message" -> "Hello World", "type" -> "doc")))
+    maybeDoc2 should be (Some(Json.obj("message" -> "Goodbye World", "type" -> "doc")))
+
     val doc1Exists = bucket.exists("key1").await.debug("doc1Exists")
     val doc2Exists = bucket.exists("key2").await.debug("doc2Exists")
+
+    doc1Exists should be (true)
+    doc2Exists should be (true)
 
     val results1 = bucket.search(N1qlQuery("select message from default")).asSeq.await.debug("results1")
     val results2 = bucket.search(N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
     val results3 = bucket.search(N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
     val results4 = bucket.search(N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc"))).asSeq.await.debug("results4")
-
-    bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc")))
+    val results5 = bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc")))
       .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
       .runWith(Sink.seq[String]).await.debug("results5")
+
+    results1 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
+    results2 should be (Seq(Json.obj("message" -> "Hello World")))
+    results3 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
+    results4 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
+    results5 should be (Seq("HELLO WORLD", "GOODBYE WORLD"))
 
     bucket.close().await
   }
