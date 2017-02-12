@@ -11,7 +11,6 @@ import com.couchbase.client.java.document.RawJsonDocument
 import com.typesafe.config.Config
 import org.reactivecouchbase.scaladsl.Implicits._
 import play.api.libs.json._
-import rx.functions.Func1
 import rx.{Observable, RxReactiveStreams}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,15 +39,21 @@ class Bucket(config: BucketConfig) {
   private val defaultWriteSettings: WriteSettings = WriteSettings()
   private val internalExecutionContext = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
 
+  // TODO : map clusterManager
+
+  // TODO : get from a pool ?
+  // TODO : pass complex settings
   private val cluster: CouchbaseCluster = CouchbaseCluster.create(config.hosts:_*)
 
+  // TODO : implements in a non blocking fashion
   private val (bucket, asyncBucket, bucketManager, futureBucket) = {
     val _bucket = config.password
       .map(p => cluster.openBucket(config.name, p))
       .getOrElse(cluster.openBucket(config.name))
+    // TODO : map bucketManager
     val _bucketManager = _bucket.bucketManager()
     // TODO : avoid index creation
-    _bucketManager.createN1qlPrimaryIndex(true, false)
+    _bucketManager.async().createN1qlPrimaryIndex(true, false)
     (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
   }
 
@@ -56,13 +61,13 @@ class Bucket(config: BucketConfig) {
   // implement other searches
   // implement management (design doc, etc ...)
 
-  // TODO streams
+  // TODO : streams equivalent
   // get
   // insert
   // upsert
   // remove
 
-  // TODO later
+  // TODO : implements later
   // maps operations
   // sets operations
   // lists operations
@@ -131,8 +136,19 @@ class Bucket(config: BucketConfig) {
   def search[T](query: QueryLike, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[T] = {
     SimpleQueryResult(() => {
       val obs: Observable[T] = query match {
-        case N1qlQuery(n1ql, _) => {
+        case N1qlQuery(n1ql, args) if args.value.isEmpty => {
           asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
+            .flatMap(RxUtils.func1(_.rows()))
+            .map(RxUtils.func1 { t =>
+              reader.reads(Json.parse(t.byteValue())) match {
+                case JsSuccess(s, _) => s
+                case JsError(e) => throw new RuntimeException(s"Error while parsing document : $e") // TODO : better error
+              }
+            })
+        }
+        case N1qlQuery(n1ql, args) if args.value.nonEmpty => {
+          val params = JsonConverter.convertToJson(args)
+          asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.parameterized(n1ql, params))
             .flatMap(RxUtils.func1(_.rows()))
             .map(RxUtils.func1 { t =>
               reader.reads(Json.parse(t.byteValue())) match {

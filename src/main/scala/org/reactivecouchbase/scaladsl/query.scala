@@ -3,12 +3,17 @@ package org.reactivecouchbase.scaladsl
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import org.reactivestreams.Publisher
+import play.api.libs.json.{JsObject, Json}
 
 import scala.concurrent.Future
 
 sealed trait QueryLike
 
-case class N1qlQuery(n1ql: String, params: Map[String, String] = Map.empty) extends QueryLike
+case class N1qlQuery(n1ql: String, params: JsObject = Json.obj()) extends QueryLike {
+  def on(args: JsObject) = copy(params = args)
+}
+
+case class ViewQuery() extends QueryLike
 
 // TODO : work on naming
 trait QueryResult[T] {
