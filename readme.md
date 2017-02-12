@@ -7,8 +7,7 @@ Yes, it's happening !!!
 ```sh
 git clone https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core.git
 cd reactivecouchbase-rs-core
-sbt
-;clean;compile;publish-local
+sbt ';clean;compile;publish-local'
 ```
 
 then in your project add the following dependency
