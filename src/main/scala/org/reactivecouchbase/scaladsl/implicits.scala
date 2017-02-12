@@ -4,6 +4,8 @@ import rx.Observable
 
 import scala.concurrent.{Future, Promise}
 
+case class ObservableCompletedWithoutValue(message: String, cause: Throwable = null) extends RuntimeException(message, cause)
+
 object Implicits {
 
   implicit class EnhancedObservable[T](obs: Observable[T]) {
@@ -14,7 +16,7 @@ object Implicits {
         RxUtils.action1(p.tryFailure(_)),
         RxUtils.action0 { () =>
           if (!p.isCompleted) {
-            p.tryFailure(new RuntimeException("Observable should have produced at least a value ..."))
+            p.tryFailure(new ObservableCompletedWithoutValue("Observable should have produced at least a value ..."))
           }
         }
       )

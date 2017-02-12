@@ -36,9 +36,11 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     val maybeDoc1 = bucket.get("key1").await.debug("maybeDoc1")
     val maybeDoc2 = bucket.get("key2").await.debug("maybeDoc2")
+    val maybeDoc3 = bucket.get("key3").await.debug("maybeDoc3")
 
     maybeDoc1 should be (Some(Json.obj("message" -> "Hello World", "type" -> "doc")))
     maybeDoc2 should be (Some(Json.obj("message" -> "Goodbye World", "type" -> "doc")))
+    maybeDoc3 should be (None)
 
     val doc1Exists = bucket.exists("key1").await.debug("doc1Exists")
     val doc2Exists = bucket.exists("key2").await.debug("doc2Exists")

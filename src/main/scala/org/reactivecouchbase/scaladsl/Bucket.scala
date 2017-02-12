@@ -57,24 +57,44 @@ class Bucket(config: BucketConfig) {
     (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
   }
 
-  // TODO
-  // implement other searches
-  // implement management (design doc, etc ...)
+  // TODO : implement other searches
+  // TODO : implement management (design doc, etc ...)
 
-  // TODO : streams equivalent
-  // get
-  // insert
-  // upsert
-  // remove
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // TODO : implements later
-  // maps operations
-  // sets operations
-  // lists operations
-  // queues operations
-  // getAndTouch
-  // getAndLock
-  // counter operations
+  def getStream[T](keys: Source[String, _], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Source[T, _] = {
+    keys.flatMapConcat(k => Source.fromFuture(get[T](k, reader)(ec))).filter(_.isDefined).map(_.get)
+  }
+
+  def removeStream(keys: Source[String, _], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Source[Boolean, _] = {
+    keys.flatMapConcat(k => Source.fromFuture(remove(k, settings)(ec)))
+  }
+
+  def insertStream[T](values: Source[(String, T), _], settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Source[JsValue, _] = {
+    values.flatMapConcat(tuple => Source.fromFuture(insert[T](tuple._1, tuple._2, settings, writer)(ec)))
+  }
+
+  def upsertStream[T](values: Source[(String, T), _], settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Source[JsValue, _] = {
+    values.flatMapConcat(tuple => Source.fromFuture(upsert[T](tuple._1, tuple._2, settings, writer)(ec)))
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // TODO : maps operations
+  // TODO : sets operations
+  // TODO : lists operations
+  // TODO : queues operations
+  // TODO : getAndTouch
+  // TODO : getAndLock
+  // TODO : counter operations
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def close()(implicit ec: ExecutionContext): Future[Boolean] = {
     futureBucket.flatMap(_.close().asFuture.map(_.booleanValue())).andThen {
@@ -92,9 +112,9 @@ class Bucket(config: BucketConfig) {
     }
   }
 
-  def remove(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[JsValue] = {
+  def remove(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Boolean] = {
     futureBucket.flatMap { bucket =>
-      bucket.remove(key, settings.persistTo, settings.replicateTo, classOf[RawJsonDocument]).asFuture.map(doc => Json.parse(doc.content()))
+      bucket.remove(key, settings.persistTo, settings.replicateTo).asFuture.map(_ != null)
     }
   }
 
@@ -130,12 +150,15 @@ class Bucket(config: BucketConfig) {
     futureBucket.flatMap(b => b.get(RawJsonDocument.create(key)).asFuture)
       .filter(_ != null)
       .map(doc => Json.parse(doc.content()))
-      .map(jsDoc => reader.reads(jsDoc).asOpt)
+      .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
+        case ObservableCompletedWithoutValue(_, _) => Future.successful(None)
+      }
   }
 
   def search[T](query: QueryLike, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[T] = {
     SimpleQueryResult(() => {
       val obs: Observable[T] = query match {
+        case ViewQuery() => throw new RuntimeException("ViewQuery are not supported yet")
         case N1qlQuery(n1ql, args) if args.value.isEmpty => {
           asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
             .flatMap(RxUtils.func1(_.rows()))
