@@ -1,21 +1,28 @@
 package org.reactivecouchbase.scaladsl
 
+import java.util.concurrent.ConcurrentHashMap
+
 import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 
 class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
-  def bucket(name: String): Bucket = Bucket(BucketConfig(config.getConfig(s"buckets.$name"), system))
+
+  private val pool = new ConcurrentHashMap[String, Bucket]()
+
+  def bucket(name: String): Bucket = {
+    pool.computeIfAbsent(name, JavaUtils.function { key =>
+      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), system))
+    })
+  }
 }
 
 object ReactiveCouchbase {
-  // TODO : pool bucket
   def apply(config: Config): ReactiveCouchbase = {
     val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
     new ReactiveCouchbase(actualConfig, ActorSystem("ReactiveCouchbaseSystem", actualConfig.getConfig("akka")))
   }
-  // TODO : pool bucket
   def apply(config: Config, system: ActorSystem): ReactiveCouchbase = {
-    val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
+    val actualConfig = config.withFallback(ConfigFactory.empty())
     new ReactiveCouchbase(actualConfig, system)
   }
 }

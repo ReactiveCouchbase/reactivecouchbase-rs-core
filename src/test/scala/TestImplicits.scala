@@ -11,8 +11,9 @@ object TestImplicits {
       obj
     }
 
-    def debug(label: String): T = {
-      println(if (obj != null) s"$label: ${obj.toString}" else s"$label: null")
+    def debug(label: String, f: T => String = a => a.toString): T = {
+      val newObj = f(obj)
+      println(if (newObj != null) s"$label: ${newObj.toString}" else s"$label: null")
       obj
     }
   }

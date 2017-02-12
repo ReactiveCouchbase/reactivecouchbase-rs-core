@@ -41,7 +41,6 @@ class Bucket(config: BucketConfig) {
 
   // TODO : map clusterManager
 
-  // TODO : get from a pool ?
   // TODO : pass complex settings
   private val cluster: CouchbaseCluster = CouchbaseCluster.create(config.hosts:_*)
 
@@ -78,6 +77,10 @@ class Bucket(config: BucketConfig) {
 
   def upsertStream[T](values: Source[(String, T), _], settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Source[JsValue, _] = {
     values.flatMapConcat(tuple => Source.fromFuture(upsert[T](tuple._1, tuple._2, settings, writer)(ec)))
+  }
+
+  def searchStream[T](query: QueryLike, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Source[T, _] = {
+    search[T](query, reader)(ec, materializer).asSource
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -158,7 +161,14 @@ class Bucket(config: BucketConfig) {
   def search[T](query: QueryLike, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[T] = {
     SimpleQueryResult(() => {
       val obs: Observable[T] = query match {
-        case ViewQuery() => throw new RuntimeException("ViewQuery are not supported yet")
+        case ViewQuery(vquery) => {
+          asyncBucket.query(vquery)
+            .flatMap(RxUtils.func1(_.rows()))
+            .map(RxUtils.func1 { row =>
+              row
+            })
+          throw new RuntimeException("ViewQuery are not supported yet")
+        }
         case N1qlQuery(n1ql, args) if args.value.isEmpty => {
           asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
             .flatMap(RxUtils.func1(_.rows()))

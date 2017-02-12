@@ -1,6 +1,8 @@
 package org.reactivecouchbase.scaladsl
 
-import com.couchbase.client.java.document.json.{JsonArray, JsonNull, JsonObject}
+import java.util.function.Function
+
+import com.couchbase.client.java.document.json.JsonObject
 import play.api.libs.json._
 import rx.functions.{Action0, Action1, Func1}
 
@@ -13,6 +15,14 @@ object RxUtils {
   }
   def action0[T](f: () => _): Action0 = new Action0 {
     override def call(): Unit = f()
+  }
+}
+
+object JavaUtils {
+  def function[T, R](f: T => R): java.util.function.Function[T, R] = {
+    new Function[T, R] {
+      override def apply(t: T): R = f(t)
+    }
   }
 }
 
