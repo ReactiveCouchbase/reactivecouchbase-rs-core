@@ -76,7 +76,7 @@ class Bucket(config: BucketConfig) {
   // getAndLock
   // counter operations
 
-  def close(implicit ec: ExecutionContext): Future[Boolean] = {
+  def close()(implicit ec: ExecutionContext): Future[Boolean] = {
     futureBucket.flatMap(_.close().asFuture.map(_.booleanValue())).andThen {
       case _ => cluster.disconnect()
     }

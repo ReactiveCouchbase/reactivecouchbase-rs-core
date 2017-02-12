@@ -8,10 +8,12 @@ class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
 }
 
 object ReactiveCouchbase {
+  // TODO : pool bucket
   def apply(config: Config): ReactiveCouchbase = {
     val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
     new ReactiveCouchbase(actualConfig, ActorSystem("ReactiveCouchbaseSystem", actualConfig.getConfig("akka")))
   }
+  // TODO : pool bucket
   def apply(config: Config, system: ActorSystem): ReactiveCouchbase = {
     val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
     new ReactiveCouchbase(actualConfig, system)

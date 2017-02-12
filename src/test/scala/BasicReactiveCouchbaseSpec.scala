@@ -1,5 +1,6 @@
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest.{FlatSpec, Matchers}
@@ -42,8 +43,12 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     val results1 = bucket.search(N1qlQuery("select message from default")).asSeq.await.debug("results1")
     val results2 = bucket.search(N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
     val results3 = bucket.search(N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
-    val results4 = bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc"))).asSeq.await.debug("results3")
+    val results4 = bucket.search(N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc"))).asSeq.await.debug("results4")
 
-    bucket.close.await
+    bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc")))
+      .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
+      .runWith(Sink.seq[String]).await.debug("results5")
+
+    bucket.close().await
   }
 }
