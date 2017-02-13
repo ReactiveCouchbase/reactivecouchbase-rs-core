@@ -115,4 +115,4 @@ class ApiController @Inject()(couchbase: Couchbase)(implicit ec: ExecutionContex
     Ok.chunked(source.intersperse("[", ",", "]")).as("application/json")
   }
 }
-``
+```
