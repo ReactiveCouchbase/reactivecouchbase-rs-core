@@ -33,7 +33,8 @@ import com.typesafe.config.ConfigFactory
 
 object ReactiveCouchbaseTest extends App {
 
-  implicit val system = ActorSystem("ReactiveCouchbaseSystem")
+  val system = ActorSystem("ReactiveCouchbaseSystem")
+
   implicit val materializer = ActorMaterializer.create(system)
   implicit val ec = system.dispatcher
 
