@@ -157,17 +157,44 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       }
   }
 
+  def searchSpatial[T](query: SpatialQuery, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[SpatialViewRow[T]] = {
+    SimpleQueryResult(() => {
+      val obs: Observable[SpatialViewRow[T]] = asyncBucket.query(query.query)
+        .flatMap(RxUtils.func1(_.rows()))
+        .map(RxUtils.func1 { row =>
+          SpatialViewRow[T](
+            row.id(),
+            JsonConverter.convertToJsValue(row.key()),
+            JsonConverter.convertToJsValue(row.value()),
+            JsonConverter.convertToJsValue(row.geometry()),
+            row.document(classOf[RawJsonDocument]).asFuture.filter(_ != null).map(a => Json.parse(a.content())),
+            reader
+          )
+        })
+      Source.fromPublisher[SpatialViewRow[T]](RxReactiveStreams.toPublisher[SpatialViewRow[T]](obs))
+    })
+  }
+
+  def searchView[T](query: ViewQuery, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[ViewRow[T]] = {
+    SimpleQueryResult(() => {
+      val obs: Observable[ViewRow[T]] = asyncBucket.query(query.query)
+        .flatMap(RxUtils.func1(_.rows()))
+        .map(RxUtils.func1 { row =>
+          ViewRow(
+            row.id(),
+            JsonConverter.convertToJsValue(row.key()),
+            JsonConverter.convertToJsValue(row.value()),
+            row.document(classOf[RawJsonDocument]).asFuture.filter(_ != null).map(a => Json.parse(a.content())),
+            reader
+          )
+        })
+      Source.fromPublisher[ViewRow[T]](RxReactiveStreams.toPublisher[ViewRow[T]](obs))
+    })
+  }
+
   def search[T](query: QueryLike, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[T] = {
     SimpleQueryResult(() => {
       val obs: Observable[T] = query match {
-        case ViewQuery(vquery) => {
-          asyncBucket.query(vquery)
-            .flatMap(RxUtils.func1(_.rows()))
-            .map(RxUtils.func1 { row =>
-              row
-            })
-          throw new RuntimeException("ViewQuery are not supported yet")
-        }
         case N1qlQuery(n1ql, args) if args.value.isEmpty => {
           asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
             .flatMap(RxUtils.func1(_.rows()))

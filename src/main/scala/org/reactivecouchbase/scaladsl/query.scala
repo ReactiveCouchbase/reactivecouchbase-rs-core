@@ -3,9 +3,12 @@ package org.reactivecouchbase.scaladsl
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import org.reactivestreams.Publisher
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json._
+import com.couchbase.client.java.view.{SpatialViewQuery => CouchbaseSpatialViewQuery}
+import com.couchbase.client.java.view.{ViewQuery => CouchbaseViewQuery}
+import com.couchbase.client.java.search.{SearchQuery => CouchbaseSearchQuery}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 sealed trait QueryLike
 
@@ -15,19 +18,29 @@ case class N1qlQuery(n1ql: String, params: JsObject = Json.obj()) extends QueryL
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-case class SpatialQuery() extends QueryLike
+case class SpatialQuery(query: CouchbaseSpatialViewQuery) extends QueryLike
+
+case class SpatialViewRow[T](id: String, key: JsValue, value: JsValue, geometry: JsValue, doc: Future[JsValue], reader: Reads[T]) {
+  def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
+}
+
+object SpatialQuery {
+  def apply(designDoc: String, view: String, f: CouchbaseSpatialViewQuery => CouchbaseSpatialViewQuery = identity): SpatialQuery = {
+    SpatialQuery(CouchbaseSpatialViewQuery.from(designDoc, view))
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-case class ViewRow(id: String, key: String, value: Any, doc: JsValue)
-
-case class ViewQuery(query: com.couchbase.client.java.view.ViewQuery) extends QueryLike  {
-
+case class ViewRow[T](id: String, key: JsValue, value: JsValue, doc: Future[JsValue], reader: Reads[T]) {
+  def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 
+case class ViewQuery(query: CouchbaseViewQuery) extends QueryLike
+
 object ViewQuery {
-  def apply(designDoc: String, view: String, f: com.couchbase.client.java.view.ViewQuery => com.couchbase.client.java.view.ViewQuery = identity): ViewQuery = {
-    ViewQuery(com.couchbase.client.java.view.ViewQuery.from(designDoc, view))
+  def apply(designDoc: String, view: String, f: CouchbaseViewQuery => CouchbaseViewQuery = identity): ViewQuery = {
+    ViewQuery(CouchbaseViewQuery.from(designDoc, view))
   }
 }
 
