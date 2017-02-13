@@ -23,7 +23,9 @@ class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
 
     implicit val ec = ReactiveCouchbase.ec
 
-    Future.sequence(pool.toSeq.map(_._2.close())).map(_ => ())
+    system.terminate().flatMap { _ =>
+      Future.sequence(pool.toSeq.map(_._2.close())).map(_ => ())
+    }
   }
 }
 
@@ -31,11 +33,11 @@ object ReactiveCouchbase {
 
   private val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
 
-  def apply(config: Config): ReactiveCouchbase = {
+  def apply(config: Config = ConfigFactory.load()): ReactiveCouchbase = {
     val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
     new ReactiveCouchbase(actualConfig, ActorSystem("ReactiveCouchbaseSystem", actualConfig.getConfig("akka")))
   }
-  def apply(config: Config, system: ActorSystem): ReactiveCouchbase = {
+  def apply(config: Config = ConfigFactory.load(), system: ActorSystem): ReactiveCouchbase = {
     val actualConfig = config.withFallback(ConfigFactory.empty())
     new ReactiveCouchbase(actualConfig, system)
   }
