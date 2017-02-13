@@ -53,7 +53,9 @@ object ReactiveCouchbaseTest extends App {
     _        <- bucket.insert("key1", Json.obj("message" -> "Hello World", "type" -> "doc"))
     doc      <- bucket.get("key1")
     exists   <- bucket.exists("key1")
-    docs     <- bucket.search(N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc"))).asSeq
+    docs     <- bucket.search(N1qlQuery("select message from default where type = $type")
+                  .on(Json.obj("type" -> "doc")))
+                  .asSeq
     messages <- bucket.search(N1qlQuery("select message from default where type = 'doc'"))
                   .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
                   .runWith(Sink.seq[String])
