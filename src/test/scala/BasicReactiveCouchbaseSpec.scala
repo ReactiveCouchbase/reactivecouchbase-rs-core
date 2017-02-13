@@ -1,10 +1,15 @@
+import java.util.concurrent.TimeUnit
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{Sink, Source}
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest._
 import play.api.libs.json.{JsValue, Json}
+
+import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration.FiniteDuration
 
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
@@ -28,6 +33,12 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     val bucket = driver.bucket("default")
 
+    bucket.remove("doc-1").recover { case _ => Json.obj() }.await
+    bucket.remove("doc-2").recover { case _ => Json.obj() }.await
+    bucket.remove("doc-3").recover { case _ => Json.obj() }.await
+    bucket.remove("doc-4").recover { case _ => Json.obj() }.await
+    bucket.remove("doc-5").recover { case _ => Json.obj() }.await
+    bucket.remove("doc-6").recover { case _ => Json.obj() }.await
     bucket.remove("key1").recover { case _ => Json.obj() }.await.debug("Remove1")
     bucket.remove("key2").recover { case _ => Json.obj() }.await.debug("Remove2")
     bucket.remove("counter").recover { case _ => Json.obj() }.await.debug("Remove3")
@@ -74,6 +85,21 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     counter3 should be (3L)
     counter4 should be (2L)
     counter  should be (2L)
+
+    bucket.tailSearch[JsValue](
+      l => N1qlQuery(s"select message, date from default where type = 'timedoc' and date > $l"),
+      (json, last) => (json \ "date").asOpt[Long].getOrElse(last)
+    ).runWith(Sink.foreach { item =>
+      println("found item : " + Json.prettyPrint(item))
+    })
+
+    Source.apply(collection.immutable.Seq(1, 2, 3, 4, 5, 6)).flatMapConcat { v =>
+      val p = Promise[Int]
+      system.scheduler.scheduleOnce(FiniteDuration(300, TimeUnit.MILLISECONDS))(p.trySuccess(v))(system.dispatcher)
+      Source.fromFuture(p.future)
+    }.map(v => {
+      (s"doc-$v", Json.obj("type" -> "timedoc", "message" -> s"message nb $v", "date" -> System.nanoTime()))
+    }).via(bucket.insertFlow[JsValue]()).runWith(Sink.seq).await.debug("Res")
 
     bucket.close().await
   }

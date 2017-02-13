@@ -46,19 +46,19 @@ object ViewQuery {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // TODO : work on naming
-trait QueryResult[T] {
-  def asSource: Source[T, _]
+trait QueryResult[T, Mat] {
+  def asSource: Source[T, Mat]
   def asSeq(implicit materializer: Materializer): Future[Seq[T]] = asSource.runWith(Sink.seq[T])(materializer)
   def asPublisher(fanout: Boolean = true)(implicit materializer: Materializer): Publisher[T] = asSource.runWith(Sink.asPublisher(fanout))(materializer)
   def asHeadOption(implicit materializer: Materializer): Future[Option[T]] = asSource.runWith(Sink.headOption)(materializer)
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  def map[U](f: T => U): QueryResult[U] = SimpleQueryResult(() => asSource.map(f))
-  def flatMap[U, M](f: T => Source[U, M]): QueryResult[U] = SimpleQueryResult(() => asSource.flatMapConcat(f))
+  def map[U](f: T => U): QueryResult[U, Mat] = SimpleQueryResult(() => asSource.map(f))
+  def flatMap[U, M](f: T => Source[U, M]): QueryResult[U, Mat] = SimpleQueryResult(() => asSource.flatMapConcat(f))
   def fold[U](zero: U)(reducer: (U, T) => U)(implicit materializer: Materializer): Future[U] = asSource.runFold(zero)(reducer)(materializer)
   def foldAsync[U](zero: U)(reducer: (U, T) => Future[U])(implicit materializer: Materializer): Future[U] = asSource.runFoldAsync(zero)(reducer)(materializer)
 }
 
-private[scaladsl] case class SimpleQueryResult[T](source: () => Source[T, _]) extends QueryResult[T] {
-  lazy val lazySource = source()
-  override def asSource: Source[T, _] = lazySource
+private[scaladsl] case class SimpleQueryResult[T, Mat](source: () => Source[T, Mat]) extends QueryResult[T, Mat] {
+  private lazy val lazySource: Source[T, Mat] = source()
+  override def asSource: Source[T, Mat] = lazySource
 }
