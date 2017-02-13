@@ -29,6 +29,7 @@ import play.api.libs.json.Json
 import akka.stream.scaladsl.Sink
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 
 object ReactiveCouchbaseTest extends App {
 
@@ -48,7 +49,7 @@ object ReactiveCouchbaseTest extends App {
 
   val bucket = driver.bucket("default")
 
-  val (_, _, docs) = for {
+  val future = for {
     _        <- bucket.insert("key1", Json.obj("message" -> "Hello World", "type" -> "doc"))
     doc      <- bucket.get("key1")
     exists   <- bucket.exists("key1")
@@ -59,7 +60,9 @@ object ReactiveCouchbaseTest extends App {
     _        <- driver.terminate()
   } yield (doc, exists, docs)
 
-  println(s"found $docs")
+  future.map {
+    case (_, _, docs) => println(s"found $docs")
+  }
 
 }
 ```
@@ -70,9 +73,10 @@ I don't think you actually need a plugin, if you want to use it from Play Framew
 
 
 ```scala
-import javax.inject
+import javax.inject._
 import play.api.inject.ApplicationLifecycle
 import play.api.Configuration
+import org.reactivecouchbase.scaladsl._
 
 @Singleton
 class Couchbase @Inject()(configuration: Configuration, lifecycle: ApplicationLifecycle) {
@@ -90,16 +94,20 @@ class Couchbase @Inject()(configuration: Configuration, lifecycle: ApplicationLi
 so you can define a controller like the following
 
 ```scala
+import javax.inject._
+import scala.concurrent.ExecutionContext
+import play.api.mvc._
+import akka.stream.Materializer
+import play.api.libs.json._
+
 @Singleton
 class ApiController @Inject()(couchbase: Couchbase)(implicit ec: ExecutionContext, materializer: Materializer) extends Controller {
 
   def eventsBucket = couchbase.bucket("events")
 
-  def events(from: Option[String] = None) = Action {
-
-    val date = from.map(DateTime.parse).getOrElse(DateTime.now())
-    val source = eventsBucket.search(N1qlQuery("select id, payload, date, params from events where date > $date")
-        .on(Json.obj("date" -> date.toString("dd-MM-yyyy")))
+  def events(type: Option[String] = None) = Action {
+    val source = eventsBucket.search(N1qlQuery("select id, payload, date, params, type from events where type = $type")
+        .on(Json.obj("type" -> type.getOrElse("doc")))
         .asSource
         .map(Json.stringify)
     Ok.chunked(source.intersperse("[", ",", "]")).as("application/json")

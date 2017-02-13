@@ -1,7 +1,5 @@
 package org.reactivecouchbase.scaladsl
 
-import java.util.concurrent.Executors
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
@@ -37,7 +35,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   private val defaultReads: Reads[JsValue] = Reads.apply(jsv => JsSuccess(jsv))
   private val defaultWrites: Writes[JsValue] = Writes.apply(jsv => jsv)
   private val defaultWriteSettings: WriteSettings = WriteSettings()
-  private val internalExecutionContext = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
 
   // TODO : map clusterManager
 
@@ -56,6 +53,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
   }
 
+  // TODO : implement tailable query
   // TODO : implement other searches
   // TODO : implement management (design doc, etc ...)
 

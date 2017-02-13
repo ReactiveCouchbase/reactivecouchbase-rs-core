@@ -21,7 +21,7 @@ class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
 
     import collection.JavaConversions._
 
-    implicit val ec = ReactiveCouchbase.ec
+    implicit val ec = system.dispatcher
 
     system.terminate().flatMap { _ =>
       Future.sequence(pool.toSeq.map(_._2.close())).map(_ => ())

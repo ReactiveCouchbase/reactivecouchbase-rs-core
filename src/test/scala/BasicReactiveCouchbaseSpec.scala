@@ -4,7 +4,7 @@ import akka.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest._
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
