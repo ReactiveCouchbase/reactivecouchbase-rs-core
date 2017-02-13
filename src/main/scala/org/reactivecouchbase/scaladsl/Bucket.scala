@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.NotUsed
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Cancellable}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.couchbase.client.java.CouchbaseCluster
@@ -76,7 +76,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     // TODO : implement for other kind of search
     val ref = new AtomicReference[Long](from)
     val last = new AtomicReference[T]()
-    // TODO : cancellable flow via materialization
     Flow[NotUsed].flatMapConcat { _ =>
       search[T](query(ref.get()), reader)(ec, mat)
         .asSource
@@ -90,7 +89,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     }
   }
 
-  def tailSearch[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, limit: Long = Long.MaxValue, every: FiniteDuration = FiniteDuration(200, TimeUnit.MILLISECONDS), reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, mat: Materializer): Source[T, _] = {
+  def tailSearch[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, limit: Long = Long.MaxValue, every: FiniteDuration = FiniteDuration(200, TimeUnit.MILLISECONDS), reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, mat: Materializer): Source[T, Cancellable] = {
     // TODO : implement for other kind of search
     Source.tick(
       FiniteDuration(0, TimeUnit.MILLISECONDS),

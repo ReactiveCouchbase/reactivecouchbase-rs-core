@@ -1,8 +1,9 @@
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
+import akka.{Done, NotUsed}
+import akka.actor.{ActorSystem, Cancellable}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest._
@@ -86,14 +87,33 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     counter4 should be (2L)
     counter  should be (2L)
 
+    val (cancel, fu) = Source.tick(
+      FiniteDuration(0, TimeUnit.MILLISECONDS),
+      FiniteDuration(400, TimeUnit.MILLISECONDS),
+      NotUsed
+    ).via(bucket.tailSearchFlow[JsValue](
+      l => N1qlQuery(s"select message, date from default where type = 'timedoc' and date > $l"),
+      (json, last) => (json \ "date").asOpt[Long].getOrElse(last)
+    )).toMat(Sink.foreach { item =>
+      println("found item 1 : " + Json.prettyPrint(item))
+    })(Keep.both).run()(materializer)
+
+    system.scheduler.scheduleOnce(FiniteDuration(2, TimeUnit.SECONDS))({
+      cancel.cancel()
+    })(ec)
+
+    fu.andThen {
+      case _ => println("done 1")
+    }
+
     bucket.tailSearch[JsValue](
       l => N1qlQuery(s"select message, date from default where type = 'timedoc' and date > $l"),
       (json, last) => (json \ "date").asOpt[Long].getOrElse(last),
       limit = 5
     ).runWith(Sink.foreach { item =>
-      println("found item : " + Json.prettyPrint(item))
+      println("found item 2 : " + Json.prettyPrint(item))
     }).andThen {
-      case _ => println("done")
+      case _ => println("done 2")
     }
 
     Source.apply(collection.immutable.Seq(1, 2, 3, 4, 5, 6)).flatMapConcat { v =>
