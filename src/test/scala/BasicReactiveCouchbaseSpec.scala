@@ -88,10 +88,13 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     bucket.tailSearch[JsValue](
       l => N1qlQuery(s"select message, date from default where type = 'timedoc' and date > $l"),
-      (json, last) => (json \ "date").asOpt[Long].getOrElse(last)
+      (json, last) => (json \ "date").asOpt[Long].getOrElse(last),
+      limit = 5
     ).runWith(Sink.foreach { item =>
       println("found item : " + Json.prettyPrint(item))
-    })
+    }).andThen {
+      case _ => println("done")
+    }
 
     Source.apply(collection.immutable.Seq(1, 2, 3, 4, 5, 6)).flatMapConcat { v =>
       val p = Promise[Int]

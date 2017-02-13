@@ -71,17 +71,13 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // TODO : implement management (design doc, etc ...)
-  def tailSearch[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, every: FiniteDuration = FiniteDuration(200, TimeUnit.MILLISECONDS), reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, mat: Materializer): Source[T, _] = {
-    // TODO : implement for other kind of search
+  def tailSearchFlow[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, mat: Materializer): Flow[NotUsed, T, NotUsed] = {
     // TODO : rewrite for perfs
+    // TODO : implement for other kind of search
     val ref = new AtomicReference[Long](from)
     val last = new AtomicReference[T]()
-    Source.tick(
-      FiniteDuration(0, TimeUnit.MILLISECONDS),
-      every,
-      NotUsed
-    ).flatMapConcat { _ =>
+    // TODO : cancellable flow via materialization
+    Flow[NotUsed].flatMapConcat { _ =>
       search[T](query(ref.get()), reader)(ec, mat)
         .asSource
         .map { item =>
@@ -92,6 +88,15 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
           ref.set(extractor(last.get(), ref.get()))
         })
     }
+  }
+
+  def tailSearch[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, limit: Long = Long.MaxValue, every: FiniteDuration = FiniteDuration(200, TimeUnit.MILLISECONDS), reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, mat: Materializer): Source[T, _] = {
+    // TODO : implement for other kind of search
+    Source.tick(
+      FiniteDuration(0, TimeUnit.MILLISECONDS),
+      every,
+      NotUsed
+    ).via(tailSearchFlow[T](query, extractor, from, reader)(ec, mat)).take(limit)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
