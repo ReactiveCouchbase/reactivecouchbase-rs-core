@@ -6,7 +6,6 @@ import org.reactivestreams.Publisher
 import play.api.libs.json._
 import com.couchbase.client.java.view.{SpatialViewQuery => CouchbaseSpatialViewQuery}
 import com.couchbase.client.java.view.{ViewQuery => CouchbaseViewQuery}
-import com.couchbase.client.java.search.{SearchQuery => CouchbaseSearchQuery}
 
 import scala.concurrent.{ExecutionContext, Future}
 

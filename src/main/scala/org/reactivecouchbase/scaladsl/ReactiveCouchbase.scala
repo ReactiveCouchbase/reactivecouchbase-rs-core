@@ -1,11 +1,11 @@
 package org.reactivecouchbase.scaladsl
 
-import java.util.concurrent.{ConcurrentHashMap, Executors}
+import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
 
@@ -30,9 +30,6 @@ class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
 }
 
 object ReactiveCouchbase {
-
-  private val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
-
   def apply(config: Config): ReactiveCouchbase = {
     val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
     new ReactiveCouchbase(actualConfig, ActorSystem("ReactiveCouchbaseSystem", actualConfig.getConfig("akka")))

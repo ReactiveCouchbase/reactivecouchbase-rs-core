@@ -30,6 +30,7 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     bucket.remove("key1").recover { case _ => Json.obj() }.await.debug("Remove1")
     bucket.remove("key2").recover { case _ => Json.obj() }.await.debug("Remove2")
+    bucket.remove("counter").recover { case _ => Json.obj() }.await.debug("Remove3")
 
     bucket.insert("key1", Json.obj("message" -> "Hello World", "type" -> "doc")).await.debug("Insert1", a => Json.prettyPrint(a))
     bucket.insert("key2", Json.obj("message" -> "Goodbye World", "type" -> "doc")).await.debug("Insert2", a => Json.prettyPrint(a))
@@ -61,6 +62,18 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     results3 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
     results4 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
     results5 should be (Seq("HELLO WORLD", "GOODBYE WORLD"))
+
+    val counter1 = bucket.counter("counter", initialValue = 1L).await.debug("counter1")
+    val counter2 = bucket.incr("counter").await.debug("counter2")
+    val counter3 = bucket.incr("counter").await.debug("counter3")
+    val counter4 = bucket.decr("counter").await.debug("counter4")
+    val counter  = bucket.counterValue("counter").await.debug("counter5")
+
+    counter1 should be (1L)
+    counter2 should be (2L)
+    counter3 should be (3L)
+    counter4 should be (2L)
+    counter  should be (2L)
 
     bucket.close().await
   }

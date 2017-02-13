@@ -5,7 +5,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
-import com.couchbase.client.java.document.RawJsonDocument
+import com.couchbase.client.java.document.{JsonLongDocument, RawJsonDocument}
 import com.typesafe.config.Config
 import org.reactivecouchbase.scaladsl.Implicits._
 import play.api.libs.json._
@@ -36,8 +36,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   private val defaultWrites: Writes[JsValue] = Writes.apply(jsv => jsv)
   private val defaultWriteSettings: WriteSettings = WriteSettings()
 
-  // TODO : map clusterManager
-
   // TODO : pass complex settings
   private val cluster: CouchbaseCluster = CouchbaseCluster.create(config.hosts:_*)
 
@@ -46,12 +44,27 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     val _bucket = config.password
       .map(p => cluster.openBucket(config.name, p))
       .getOrElse(cluster.openBucket(config.name))
-    // TODO : map bucketManager
     val _bucketManager = _bucket.bucketManager()
     // TODO : avoid index creation
     _bucketManager.async().createN1qlPrimaryIndex(true, false)
     (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // TODO : map clusterManager
+  // TODO : map bucketManager
+  def underlyingCluster = cluster
+  def underlyingBucket = bucket
+  def underlyingAsyncBucket = asyncBucket
+  def underlyingBucketManager = bucketManager
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
   // TODO : implement tailable query
   // TODO : implement other searches
@@ -90,8 +103,27 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   // TODO : lists operations
   // TODO : queues operations
   // TODO : getAndTouch
-  // TODO : getAndLock
-  // TODO : counter operations
+  // TODO : getAndLock, unlock
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def incr(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Long] = counter(key, 1L, 0L, settings)(ec)
+
+  def decr(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Long] = counter(key, -1L, 0L, settings)(ec)
+
+  def counter(key: String, delta: Long = 0L, initialValue: Long = 0L, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Long] = {
+    futureBucket.flatMap { bucket =>
+      bucket.counter(key, delta, initialValue, settings.persistTo, settings.replicateTo).asFuture.map(_.content())
+    }
+  }
+
+  def counterValue(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Long] = {
+    futureBucket.flatMap { bucket =>
+      bucket.get(JsonLongDocument.create(key)).asFuture.filter(_ != null).map(_.content())
+    }
+  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

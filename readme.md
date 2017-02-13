@@ -69,7 +69,7 @@ object ReactiveCouchbaseTest extends App {
 }
 ```
 
-## What about the Play Framework plugin
+## What about the Play Framework plugin ?
 
 I don't think you actually need a plugin, if you want to use it from Play Framework, you can define a service to access your buckets like the following :
 
@@ -107,11 +107,12 @@ class ApiController @Inject()(couchbase: Couchbase)(implicit ec: ExecutionContex
 
   def eventsBucket = couchbase.bucket("events")
 
-  def events(type: Option[String] = None) = Action {
-    val source = eventsBucket.search(N1qlQuery("select id, payload, date, params, type from events where type = $type")
-        .on(Json.obj("type" -> type.getOrElse("doc")))
-        .asSource
-        .map(Json.stringify)
+  def events(filter: Option[String] = None) = Action {
+    val source = eventsBucket
+      .search(N1qlQuery("select id, payload, date, params, type from events where type = $type")
+      .on(Json.obj("type" -> filter.getOrElse("doc")))
+      .asSource
+      .map(Json.stringify)
     Ok.chunked(source.intersperse("[", ",", "]")).as("application/json")
   }
 }
