@@ -1,6 +1,6 @@
 # ReactiveCouchbase v2
 
-Yes, it's happening !!! with ReactiveStreams support ;-)
+Yes, it's happening !!! with **ReactiveStreams** support ;-)
 
 ## If you want to try it
 
