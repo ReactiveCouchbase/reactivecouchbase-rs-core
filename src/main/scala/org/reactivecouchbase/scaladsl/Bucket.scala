@@ -10,6 +10,7 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
 import com.couchbase.client.java.document.{JsonLongDocument, RawJsonDocument}
+import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.typesafe.config.Config
 import org.reactivecouchbase.scaladsl.Implicits._
 import org.reactivestreams.Publisher
@@ -40,6 +41,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   private val defaultReads: Reads[JsValue] = Reads.apply(jsv => JsSuccess(jsv))
   private val defaultWrites: Writes[JsValue] = Writes.apply(jsv => jsv)
+  private val defaultFormat: Format[JsValue] = Format(defaultReads, defaultWrites)
   private val defaultWriteSettings: WriteSettings = WriteSettings()
 
   // TODO : pass complex settings
@@ -106,12 +108,12 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     Flow[String].flatMapConcat(k => Source.fromFuture(get[T](k, reader)(ec))).filter(_.isDefined).map(_.get)
   }
 
-  def getStream[T, Mat](keys: Source[String, Mat], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Source[T, Mat] = {
+  def getFromSource[T, Mat](keys: Source[String, Mat], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Source[T, Mat] = {
     keys.via(getFlow[T](reader)(ec))
   }
 
-  def getFromPub[T](keys: Publisher[String], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Source[T, NotUsed] = {
-    getStream[T, NotUsed](Source.fromPublisher(keys), reader)(ec)
+  def getFromPublisher[T](keys: Publisher[String], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Source[T, NotUsed] = {
+    getFromSource[T, NotUsed](Source.fromPublisher(keys), reader)(ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,54 +122,55 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     Flow[String].flatMapConcat(k => Source.fromFuture(remove(k, settings)(ec)))
   }
 
-  def removeStream[Mat](keys: Source[String, Mat], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Source[Boolean, Mat] = {
+  def removeFromSource[Mat](keys: Source[String, Mat], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Source[Boolean, Mat] = {
     keys.via(removeFlow(settings)(ec))
   }
 
-  def removeFromPub(keys: Publisher[String], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Source[Boolean, NotUsed] = {
-    removeStream[NotUsed](Source.fromPublisher(keys), settings)(ec)
+  def removeFromPublisher(keys: Publisher[String], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Source[Boolean, NotUsed] = {
+    removeFromSource[NotUsed](Source.fromPublisher(keys), settings)(ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def insertFlow[T](settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Flow[(String, T), JsValue, NotUsed] = {
-    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(insert[T](tuple._1, tuple._2, settings, writer)(ec)))
+  def insertFlow[T](settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Flow[(String, T), T, NotUsed] = {
+    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(insert[T](tuple._1, tuple._2, settings, format)(ec)))
   }
 
-  def insertStream[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Source[JsValue, Mat] = {
-    values.via(insertFlow[T](settings, writer)(ec))
+  def insertFromSource[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, Mat] = {
+    values.via(insertFlow[T](settings, format)(ec))
   }
 
-  def insertFromPub[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Source[JsValue, NotUsed] = {
-    insertStream[T, NotUsed](Source.fromPublisher(values), settings, writer)(ec)
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  def upsertFlow[T](settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Flow[(String, T), JsValue, NotUsed] = {
-    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(upsert[T](tuple._1, tuple._2, settings, writer)(ec)))
-  }
-
-  def upsertStream[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Source[JsValue, Mat] = {
-    values.via(upsertFlow[T](settings, writer)(ec))
-  }
-
-  def upsertFromPub[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Source[JsValue, NotUsed] = {
-    upsertStream[T, NotUsed](Source.fromPublisher(values), settings, writer)(ec)
+  def insertFromPublisher[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, NotUsed] = {
+    insertFromSource[T, NotUsed](Source.fromPublisher(values), settings, format)(ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+  def upsertFlow[T](settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Flow[(String, T), T, NotUsed] = {
+    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(upsert[T](tuple._1, tuple._2, settings, format)(ec)))
+  }
+
+  def upsertFromSource[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, Mat] = {
+    values.via(upsertFlow[T](settings, format)(ec))
+  }
+
+  def upsertFromPublisher[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, NotUsed] = {
+    upsertFromSource[T, NotUsed](Source.fromPublisher(values), settings, format)(ec)
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // TODO : implements for other searches
   def searchFlow[T](reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Flow[QueryLike, T, NotUsed] = {
     Flow[QueryLike].flatMapConcat(query => search[T](query, reader)(ec, materializer).asSource)
   }
 
-  def searchStream[T, Mat](query: Source[QueryLike, Mat], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Source[T, Mat] = {
+  def searchFromSource[T, Mat](query: Source[QueryLike, Mat], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Source[T, Mat] = {
     query.via(searchFlow[T](reader)(ec, materializer))
   }
 
-  def searchFromPub[T](query: Publisher[QueryLike], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Source[T, NotUsed] = {
-    searchStream[T, NotUsed](Source.fromPublisher(query), reader)(ec, materializer)
+  def searchFromPublisher[T](query: Publisher[QueryLike], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Source[T, NotUsed] = {
+    searchFromSource[T, NotUsed](Source.fromPublisher(query), reader)(ec, materializer)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,7 +182,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   // TODO : lists operations
   // TODO : queues operations
   // TODO : getAndTouch
-  // TODO : getAndLock, unlock
+  // TODO : lock operations
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -228,31 +231,31 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     }
   }
 
-  def insert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Future[JsValue] = {
+  def insert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Future[T] = {
     futureBucket.flatMap { bucket =>
       bucket.insert(
         RawJsonDocument.create(
           key,
           settings.expiration.toMillis.toInt,
-          Json.stringify(writer.writes(slug))
+          Json.stringify(format.writes(slug))
         ),
         settings.persistTo,
         settings.replicateTo
-      ).asFuture.map(doc => Json.parse(doc.content()))
+      ).asFuture.map(doc => format.reads(Json.parse(doc.content())).get)
     }
   }
 
-  def upsert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, writer: Writes[T] = defaultWrites)(implicit ec: ExecutionContext): Future[JsValue] = {
+  def upsert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Future[T] = {
     futureBucket.flatMap { bucket =>
       bucket.upsert(
         RawJsonDocument.create(
           key,
           settings.expiration.toMillis.toInt,
-          Json.stringify(writer.writes(slug))
+          Json.stringify(format.writes(slug))
         ),
         settings.persistTo,
         settings.replicateTo
-      ).asFuture.map(doc => Json.parse(doc.content()))
+      ).asFuture.map(doc => format.reads(Json.parse(doc.content())).get)
     }
   }
 
@@ -261,7 +264,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       .filter(_ != null)
       .map(doc => Json.parse(doc.content()))
       .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
-        case ObservableCompletedWithoutValue(_, _) => Future.successful(None)
+        case ObservableCompletedWithoutValue => Future.successful(None)
       }
   }
 

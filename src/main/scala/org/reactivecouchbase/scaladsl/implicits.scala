@@ -3,8 +3,9 @@ package org.reactivecouchbase.scaladsl
 import rx.Observable
 
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NoStackTrace
 
-case class ObservableCompletedWithoutValue(message: String, cause: Throwable = null) extends RuntimeException(message, cause)
+case object ObservableCompletedWithoutValue extends RuntimeException("Observable should have produced at least a value ...") with NoStackTrace
 
 object Implicits {
 
@@ -16,7 +17,7 @@ object Implicits {
         RxUtils.action1(p.tryFailure(_)),
         RxUtils.action0 { () =>
           if (!p.isCompleted) {
-            p.tryFailure(new ObservableCompletedWithoutValue("Observable should have produced at least a value ..."))
+            p.tryFailure(ObservableCompletedWithoutValue)
           }
         }
       )
