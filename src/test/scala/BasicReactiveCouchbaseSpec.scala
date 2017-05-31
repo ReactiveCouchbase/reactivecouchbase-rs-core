@@ -7,7 +7,7 @@ import akka.stream.scaladsl.{Keep, Sink, Source}
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest._
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.FiniteDuration
@@ -34,22 +34,22 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     val bucket = driver.bucket("default")
 
-    bucket.remove("doc-1").recover { case _ => Json.obj() }.await
-    bucket.remove("doc-2").recover { case _ => Json.obj() }.await
-    bucket.remove("doc-3").recover { case _ => Json.obj() }.await
-    bucket.remove("doc-4").recover { case _ => Json.obj() }.await
-    bucket.remove("doc-5").recover { case _ => Json.obj() }.await
-    bucket.remove("doc-6").recover { case _ => Json.obj() }.await
-    bucket.remove("key1").recover { case _ => Json.obj() }.await.debug("Remove1")
-    bucket.remove("key2").recover { case _ => Json.obj() }.await.debug("Remove2")
-    bucket.remove("counter").recover { case _ => Json.obj() }.await.debug("Remove3")
+    bucket.remove("doc-1").recover { case _ => false }.await
+    bucket.remove("doc-2").recover { case _ => false }.await
+    bucket.remove("doc-3").recover { case _ => false }.await
+    bucket.remove("doc-4").recover { case _ => false }.await
+    bucket.remove("doc-5").recover { case _ => false }.await
+    bucket.remove("doc-6").recover { case _ => false }.await
+    bucket.remove("key1").recover { case _ => false }.await.debug("Remove1")
+    bucket.remove("key2").recover { case _ => false }.await.debug("Remove2")
+    bucket.remove("counter").recover { case _ => false }.await.debug("Remove3")
 
     bucket.insert("key1", Json.obj("message" -> "Hello World", "type" -> "doc")).await.debug("Insert1", a => Json.prettyPrint(a))
     bucket.insert("key2", Json.obj("message" -> "Goodbye World", "type" -> "doc")).await.debug("Insert2", a => Json.prettyPrint(a))
 
-    val maybeDoc1 = bucket.get("key1").await.debug("maybeDoc1")
-    val maybeDoc2 = bucket.get("key2").await.debug("maybeDoc2")
-    val maybeDoc3 = bucket.get("key3").await.debug("maybeDoc3")
+    val maybeDoc1 = bucket.get[JsObject]("key1").await.debug("maybeDoc1")
+    val maybeDoc2 = bucket.get[JsObject]("key2").await.debug("maybeDoc2")
+    val maybeDoc3 = bucket.get[JsObject]("key3").await.debug("maybeDoc3")
 
     maybeDoc1 should be (Some(Json.obj("message" -> "Hello World", "type" -> "doc")))
     maybeDoc2 should be (Some(Json.obj("message" -> "Goodbye World", "type" -> "doc")))
@@ -61,11 +61,11 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     doc1Exists should be (true)
     doc2Exists should be (true)
 
-    val results1 = bucket.search(N1qlQuery("select message from default")).asSeq.await.debug("results1")
-    val results2 = bucket.search(N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
-    val results3 = bucket.search(N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
-    val results4 = bucket.search(N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc"))).asSeq.await.debug("results4")
-    val results5 = bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc")))
+    val results1 = bucket.search[JsObject](N1qlQuery("select message from default")).asSeq.await.debug("results1")
+    val results2 = bucket.search[JsObject](N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
+    val results3 = bucket.search[JsObject](N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
+    val results4 = bucket.search[JsObject](N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc"))).asSeq.await.debug("results4")
+    val results5 = bucket.search[JsObject](N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc")))
       .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
       .runWith(Sink.seq[String]).await.debug("results5")
 

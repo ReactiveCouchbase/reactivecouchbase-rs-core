@@ -10,9 +10,10 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
 import com.couchbase.client.java.document.{JsonLongDocument, RawJsonDocument}
-import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.typesafe.config.Config
 import org.reactivecouchbase.scaladsl.Implicits._
+import org.reactivecouchbase.scaladsl.json.PlayJsonDocument
+import org.reactivecouchbase.scaladsl.json.PlayJsonDocument.DocumentPimps
 import org.reactivestreams.Publisher
 import play.api.libs.json._
 import rx.{Observable, RxReactiveStreams}
@@ -39,9 +40,6 @@ object Bucket {
 
 class Bucket(config: BucketConfig, onStop: () => Unit) {
 
-  private val defaultReads: Reads[JsValue] = Reads.apply(jsv => JsSuccess(jsv))
-  private val defaultWrites: Writes[JsValue] = Writes.apply(jsv => jsv)
-  private val defaultFormat: Format[JsValue] = Format(defaultReads, defaultWrites)
   private val defaultWriteSettings: WriteSettings = WriteSettings()
 
   // TODO : pass complex settings
@@ -73,13 +71,13 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def tailSearchFlow[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, mat: Materializer): Flow[NotUsed, T, NotUsed] = {
+  def tailSearchFlow[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L)(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Flow[NotUsed, T, NotUsed] = {
     // TODO : rewrite for perfs
     // TODO : implement for other kind of search
     val ref = new AtomicReference[Long](from)
     val last = new AtomicReference[T]()
     Flow[NotUsed].flatMapConcat { _ =>
-      search[T](query(ref.get()), reader)(ec, mat)
+      search[T](query(ref.get()))
         .asSource
         .map { item =>
           last.set(item)
@@ -91,29 +89,29 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     }
   }
 
-  def tailSearch[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, limit: Long = Long.MaxValue, every: FiniteDuration = FiniteDuration(200, TimeUnit.MILLISECONDS), reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, mat: Materializer): Source[T, Cancellable] = {
+  def tailSearch[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L, limit: Long = Long.MaxValue, every: FiniteDuration = FiniteDuration(200, TimeUnit.MILLISECONDS))(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Source[T, Cancellable] = {
     // TODO : implement for other kind of search
     Source.tick(
       FiniteDuration(0, TimeUnit.MILLISECONDS),
       every,
       NotUsed
-    ).via(tailSearchFlow[T](query, extractor, from, reader)(ec, mat)).take(limit)
+    ).via(tailSearchFlow[T](query, extractor, from)).take(limit)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def getFlow[T](reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Flow[String, T, NotUsed] = {
-    Flow[String].flatMapConcat(k => Source.fromFuture(get[T](k, reader)(ec))).filter(_.isDefined).map(_.get)
+  def getFlow[T]()(implicit ec: ExecutionContext, reader: Reads[T]): Flow[String, T, NotUsed] = {
+    Flow[String].flatMapConcat(k => Source.fromFuture(get[T](k))).filter(_.isDefined).map(_.get)
   }
 
-  def getFromSource[T, Mat](keys: Source[String, Mat], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Source[T, Mat] = {
-    keys.via(getFlow[T](reader)(ec))
+  def getFromSource[T, Mat](keys: Source[String, Mat])(implicit ec: ExecutionContext, reader: Reads[T]): Source[T, Mat] = {
+    keys.via(getFlow[T]())
   }
 
-  def getFromPublisher[T](keys: Publisher[String], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Source[T, NotUsed] = {
-    getFromSource[T, NotUsed](Source.fromPublisher(keys), reader)(ec)
+  def getFromPublisher[T](keys: Publisher[String])(implicit ec: ExecutionContext, reader: Reads[T]): Source[T, NotUsed] = {
+    getFromSource[T, NotUsed](Source.fromPublisher(keys))
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,45 +130,45 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def insertFlow[T](settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Flow[(String, T), T, NotUsed] = {
-    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(insert[T](tuple._1, tuple._2, settings, format)(ec)))
+  def insertFlow[T](settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Flow[(String, T), T, NotUsed] = {
+    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(insert[T](tuple._1, tuple._2, settings)))
   }
 
-  def insertFromSource[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, Mat] = {
-    values.via(insertFlow[T](settings, format)(ec))
+  def insertFromSource[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Source[T, Mat] = {
+    values.via(insertFlow[T](settings))
   }
 
-  def insertFromPublisher[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, NotUsed] = {
-    insertFromSource[T, NotUsed](Source.fromPublisher(values), settings, format)(ec)
+  def insertFromPublisher[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Source[T, NotUsed] = {
+    insertFromSource[T, NotUsed](Source.fromPublisher(values), settings)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def upsertFlow[T](settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Flow[(String, T), T, NotUsed] = {
-    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(upsert[T](tuple._1, tuple._2, settings, format)(ec)))
+  def upsertFlow[T](settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Flow[(String, T), T, NotUsed] = {
+    Flow[(String, T)].flatMapConcat(tuple => Source.fromFuture(upsert[T](tuple._1, tuple._2, settings)))
   }
 
-  def upsertFromSource[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, Mat] = {
-    values.via(upsertFlow[T](settings, format)(ec))
+  def upsertFromSource[T, Mat](values: Source[(String, T), Mat], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Source[T, Mat] = {
+    values.via(upsertFlow[T](settings))
   }
 
-  def upsertFromPublisher[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Source[T, NotUsed] = {
-    upsertFromSource[T, NotUsed](Source.fromPublisher(values), settings, format)(ec)
+  def upsertFromPublisher[T](values: Publisher[(String, T)], settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Source[T, NotUsed] = {
+    upsertFromSource[T, NotUsed](Source.fromPublisher(values), settings)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   // TODO : implements for other searches
-  def searchFlow[T](reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Flow[QueryLike, T, NotUsed] = {
-    Flow[QueryLike].flatMapConcat(query => search[T](query, reader)(ec, materializer).asSource)
+  def searchFlow[T]()(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Flow[QueryLike, T, NotUsed] = {
+    Flow[QueryLike].flatMapConcat(query => search[T](query).asSource)
   }
 
-  def searchFromSource[T, Mat](query: Source[QueryLike, Mat], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Source[T, Mat] = {
-    query.via(searchFlow[T](reader)(ec, materializer))
+  def searchFromSource[T, Mat](query: Source[QueryLike, Mat])(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Source[T, Mat] = {
+    query.via(searchFlow[T]())
   }
 
-  def searchFromPublisher[T](query: Publisher[QueryLike], reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): Source[T, NotUsed] = {
-    searchFromSource[T, NotUsed](Source.fromPublisher(query), reader)(ec, materializer)
+  def searchFromPublisher[T](query: Publisher[QueryLike])(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Source[T, NotUsed] = {
+    searchFromSource[T, NotUsed](Source.fromPublisher(query))
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -231,44 +229,43 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     }
   }
 
-  def insert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Future[T] = {
+  def insert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Future[T] = {
     futureBucket.flatMap { bucket =>
       bucket.insert(
-        RawJsonDocument.create(
+        PlayJsonDocument.create(
           key,
           settings.expiration.toMillis.toInt,
-          Json.stringify(format.writes(slug))
+          slug
         ),
         settings.persistTo,
         settings.replicateTo
-      ).asFuture.map(doc => format.reads(Json.parse(doc.content())).get)
+      ).asFuture.map(_.value)
     }
   }
 
-  def upsert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Future[T] = {
+  def upsert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: Format[T]): Future[T] = {
     futureBucket.flatMap { bucket =>
       bucket.upsert(
-        RawJsonDocument.create(
+        PlayJsonDocument.create(
           key,
           settings.expiration.toMillis.toInt,
-          Json.stringify(format.writes(slug))
+          slug
         ),
         settings.persistTo,
         settings.replicateTo
-      ).asFuture.map(doc => format.reads(Json.parse(doc.content())).get)
+      ).asFuture.map(_.value)
     }
   }
 
-  def get[T](key: String, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Future[Option[T]] = {
-    futureBucket.flatMap(b => b.get(RawJsonDocument.create(key)).asFuture)
+  def get[T](key: String)(implicit ec: ExecutionContext, reader: Reads[T]): Future[Option[T]] = {
+    futureBucket.flatMap(b => b.get(PlayJsonDocument.create(key)).asFuture)
       .filter(_ != null)
-      .map(doc => Json.parse(doc.content()))
-      .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
+      .map(_.jsResult.asOpt).recoverWith {
         case ObservableCompletedWithoutValue => Future.successful(None)
       }
   }
 
-  def searchSpatial[T](query: SpatialQuery, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[SpatialViewRow[T], NotUsed] = {
+  def searchSpatial[T](query: SpatialQuery)(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): QueryResult[SpatialViewRow[T], NotUsed] = {
     SimpleQueryResult(() => {
       val obs: Observable[SpatialViewRow[T]] = asyncBucket.query(query.query)
         .flatMap(RxUtils.func1(_.rows()))
@@ -286,7 +283,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     })
   }
 
-  def searchView[T](query: ViewQuery, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[ViewRow[T], NotUsed] = {
+  def searchView[T](query: ViewQuery)(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): QueryResult[ViewRow[T], NotUsed] = {
     SimpleQueryResult(() => {
       val obs: Observable[ViewRow[T]] = asyncBucket.query(query.query)
         .flatMap(RxUtils.func1(_.rows()))
@@ -303,7 +300,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     })
   }
 
-  def search[T](query: QueryLike, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[T, NotUsed] = {
+  def search[T](query: QueryLike)(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): QueryResult[T, NotUsed] = {
     SimpleQueryResult(() => {
       val obs: Observable[T] = query match {
         case N1qlQuery(n1ql, args) if args.value.isEmpty => {
