@@ -1,4 +1,4 @@
-# ReactiveCouchbase v2
+# ReactiveCouchbase RS (ReactiveStreams edition)
 
 Yes, it's happening !!! with **ReactiveStreams** support ;-)
 
