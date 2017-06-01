@@ -102,7 +102,6 @@ import scala.concurrent.ExecutionContext
 import play.api.mvc._
 import akka.stream.Materializer
 import play.api.libs.json._
-import org.reactivecouchbase.rs.scaladsl._
 
 @Singleton
 class ApiController @Inject()(couchbase: Couchbase)(implicit ec: ExecutionContext, materializer: Materializer) extends Controller {
