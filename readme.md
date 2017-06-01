@@ -4,6 +4,14 @@ Yes, it's happening !!! with **ReactiveStreams** support ;-)
 
 ## If you want to try it
 
+add a resolver to your `build.sbt` file
+
+```scala
+resolvers += "reactivecouchbase" at "https://raw.github.com/ReactiveCouchbase/reactivecouchbase-rs-core/master/repository/snapshots"
+```
+
+or you can build it to get the nice goodies
+
 ```sh
 git clone https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core.git
 cd reactivecouchbase-rs-core
