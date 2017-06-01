@@ -125,7 +125,7 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
       (s"doc-$v", Json.obj("type" -> "timedoc", "message" -> s"message nb $v", "date" -> System.nanoTime()))
     }).via(bucket.insertFlow[JsValue]()).runWith(Sink.seq).await.debug("Res")
 
-    val usersUnder43: Future[Seq[JsValue]] = bucket..searchView(
+    val usersUnder43: Future[Seq[JsValue]] = bucket.searchView(
       ViewQuery("persons", "by_age", _.stale(Stale.FALSE).includeDocs(true).startKey(0).endKey(42))
     ).flatMap(d => Source.fromFuture(d.doc)).asSeq
 

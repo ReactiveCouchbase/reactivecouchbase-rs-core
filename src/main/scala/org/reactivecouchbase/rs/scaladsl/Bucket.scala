@@ -47,13 +47,13 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   private val defaultWriteSettings: WriteSettings = WriteSettings()
 
   // TODO : pass complex settings
-  private val cluster: CouchbaseCluster = CouchbaseCluster.create(config.hosts:_*)
+  private val _cluster: CouchbaseCluster = CouchbaseCluster.create(config.hosts:_*)
 
   // TODO : implements in a non blocking fashion
-  private val (bucket, asyncBucket, bucketManager, futureBucket) = {
+  private val (_bucket, _asyncBucket, _bucketManager, _futureBucket) = {
     val _bucket = config.password
-      .map(p => cluster.openBucket(config.name, p))
-      .getOrElse(cluster.openBucket(config.name))
+      .map(p => _cluster.openBucket(config.name, p))
+      .getOrElse(_cluster.openBucket(config.name))
     val _bucketManager = _bucket.bucketManager()
     // TODO : avoid index creation
     _bucketManager.async().createN1qlPrimaryIndex(true, false)
@@ -66,10 +66,10 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   // TODO : map clusterManager
   // TODO : map bucketManager
-  def underlyingCluster = cluster
-  def underlyingBucket = bucket
-  def underlyingAsyncBucket = asyncBucket
-  def underlyingBucketManager = bucketManager
+  def underlyingCluster = _cluster
+  def underlyingBucket = _bucket
+  def underlyingAsyncBucket = _asyncBucket
+  def underlyingBucketManager = _bucketManager
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -195,13 +195,13 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   def decr(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Long] = counter(key, -1L, 0L, settings)(ec)
 
   def counter(key: String, delta: Long = 0L, initialValue: Long = 0L, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Long] = {
-    futureBucket.flatMap { bucket =>
+    _futureBucket.flatMap { bucket =>
       bucket.counter(key, delta, initialValue, settings.persistTo, settings.replicateTo).asFuture.map(_.content())
     }
   }
 
   def counterValue(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Long] = {
-    futureBucket.flatMap { bucket =>
+    _futureBucket.flatMap { bucket =>
       bucket.get(JsonLongDocument.create(key)).asFuture.filter(_ != null).map(_.content())
     }
   }
@@ -212,25 +212,25 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   def close()(implicit ec: ExecutionContext): Future[Boolean] = {
     onStop()
-    futureBucket.flatMap(_.close().asFuture.map(_.booleanValue())).andThen {
-      case _ => cluster.disconnect()
+    _futureBucket.flatMap(_.close().asFuture.map(_.booleanValue())).andThen {
+      case _ => _cluster.disconnect()
     }
   }
 
   def cluster(implicit ec: ExecutionContext): Future[ClusterFacade] = {
-    futureBucket.flatMap(b => b.core().asFuture)
+    _futureBucket.flatMap(b => b.core().asFuture)
   }
 
   def environment(implicit ec: ExecutionContext): Future[CouchbaseEnvironment] = {
-    futureBucket.map(b => b.environment())
+    _futureBucket.map(b => b.environment())
   }
 
   def repository(implicit ec: ExecutionContext): Future[AsyncRepository] = {
-    futureBucket.flatMap(b => b.repository().asFuture)
+    _futureBucket.flatMap(b => b.repository().asFuture)
   }
 
   def manager(implicit ec: ExecutionContext): Future[AsyncBucketManager] = {
-    futureBucket.flatMap(b => b.bucketManager().asFuture)
+    _futureBucket.flatMap(b => b.bucketManager().asFuture)
   }
 
   def withCluster[T](f: ClusterFacade => Observable[T])(implicit ec: ExecutionContext): Future[T] = {
@@ -254,19 +254,19 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def exists(key: String)(implicit ec: ExecutionContext): Future[Boolean] = {
-    futureBucket.flatMap { bucket =>
+    _futureBucket.flatMap { bucket =>
       bucket.exists(key).asFuture.map(_.booleanValue())
     }
   }
 
   def remove(key: String, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext): Future[Boolean] = {
-    futureBucket.flatMap { bucket =>
+    _futureBucket.flatMap { bucket =>
       bucket.remove(key, settings.persistTo, settings.replicateTo).asFuture.map(_ != null)
     }
   }
 
   def insert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Future[T] = {
-    futureBucket.flatMap { bucket =>
+    _futureBucket.flatMap { bucket =>
       bucket.insert(
         RawJsonDocument.create(
           key,
@@ -280,7 +280,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   }
 
   def upsert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, format: Format[T] = defaultFormat)(implicit ec: ExecutionContext): Future[T] = {
-    futureBucket.flatMap { bucket =>
+    _futureBucket.flatMap { bucket =>
       bucket.upsert(
         RawJsonDocument.create(
           key,
@@ -294,7 +294,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   }
 
   def get[T](key: String, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext): Future[Option[T]] = {
-    futureBucket.flatMap(b => b.get(RawJsonDocument.create(key)).asFuture)
+    _futureBucket.flatMap(b => b.get(RawJsonDocument.create(key)).asFuture)
       .filter(_ != null)
       .map(doc => Json.parse(doc.content()))
       .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
@@ -304,7 +304,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   def searchSpatial[T](query: SpatialQuery, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[SpatialViewRow[T], NotUsed] = {
     SimpleQueryResult(() => {
-      val obs: Observable[SpatialViewRow[T]] = asyncBucket.query(query.query)
+      val obs: Observable[SpatialViewRow[T]] = _asyncBucket.query(query.query)
         .flatMap(RxUtils.func1(_.rows()))
         .map(RxUtils.func1 { row =>
           SpatialViewRow[T](
@@ -322,7 +322,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   def searchView[T](query: ViewQuery, reader: Reads[T] = defaultReads)(implicit ec: ExecutionContext, materializer: Materializer): QueryResult[ViewRow[T], NotUsed] = {
     SimpleQueryResult(() => {
-      val obs: Observable[ViewRow[T]] = asyncBucket.query(query.query)
+      val obs: Observable[ViewRow[T]] = _asyncBucket.query(query.query)
         .flatMap(RxUtils.func1(_.rows()))
         .map(RxUtils.func1 { row =>
           ViewRow(
@@ -341,7 +341,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     SimpleQueryResult(() => {
       val obs: Observable[T] = query match {
         case N1qlQuery(n1ql, args) if args.value.isEmpty => {
-          asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
+          _asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
             .flatMap(RxUtils.func1(_.rows()))
             .map(RxUtils.func1 { t =>
               reader.reads(Json.parse(t.byteValue())) match {
@@ -352,7 +352,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
         }
         case N1qlQuery(n1ql, args) if args.value.nonEmpty => {
           val params = JsonConverter.convertToJson(args)
-          asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.parameterized(n1ql, params))
+          _asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.parameterized(n1ql, params))
             .flatMap(RxUtils.func1(_.rows()))
             .map(RxUtils.func1 { t =>
               reader.reads(Json.parse(t.byteValue())) match {
