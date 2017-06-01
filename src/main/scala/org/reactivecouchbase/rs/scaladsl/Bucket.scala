@@ -218,6 +218,10 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     futureBucket.flatMap(b => b.bucketManager().asFuture)
   }
 
+  def withManager[T](f: AsyncBucketManager => Observable[T])(implicit ec: ExecutionContext): Future[T] = {
+    manager(ec).flatMap(m => f(m).asFuture)
+  }
+
   def exists(key: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     futureBucket.flatMap { bucket =>
       bucket.exists(key).asFuture.map(_.booleanValue())
