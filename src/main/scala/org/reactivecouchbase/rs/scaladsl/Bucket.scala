@@ -7,9 +7,12 @@ import akka.NotUsed
 import akka.actor.{ActorSystem, Cancellable}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import com.couchbase.client.core.ClusterFacade
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
 import com.couchbase.client.java.document.{JsonLongDocument, RawJsonDocument}
+import com.couchbase.client.java.env.CouchbaseEnvironment
+import com.couchbase.client.java.repository.AsyncRepository
 import com.typesafe.config.Config
 import org.reactivecouchbase.rs.scaladsl.Implicits._
 import org.reactivestreams.Publisher
@@ -214,13 +217,41 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     }
   }
 
+  def cluster(implicit ec: ExecutionContext): Future[ClusterFacade] = {
+    futureBucket.flatMap(b => b.core().asFuture)
+  }
+
+  def environment(implicit ec: ExecutionContext): Future[CouchbaseEnvironment] = {
+    futureBucket.map(b => b.environment())
+  }
+
+  def repository(implicit ec: ExecutionContext): Future[AsyncRepository] = {
+    futureBucket.flatMap(b => b.repository().asFuture)
+  }
+
   def manager(implicit ec: ExecutionContext): Future[AsyncBucketManager] = {
     futureBucket.flatMap(b => b.bucketManager().asFuture)
+  }
+
+  def withCluster[T](f: ClusterFacade => Observable[T])(implicit ec: ExecutionContext): Future[T] = {
+    cluster(ec).flatMap(c => f(c).asFuture)
+  }
+
+  def withRepository[T](f: AsyncRepository => Observable[T])(implicit ec: ExecutionContext): Future[T] = {
+    repository(ec).flatMap(r => f(r).asFuture)
+  }
+
+  def withEnvironment[T](f: CouchbaseEnvironment => T)(implicit ec: ExecutionContext): Future[T] = {
+    environment(ec).map(e => f(e))
   }
 
   def withManager[T](f: AsyncBucketManager => Observable[T])(implicit ec: ExecutionContext): Future[T] = {
     manager(ec).flatMap(m => f(m).asFuture)
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def exists(key: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     futureBucket.flatMap { bucket =>
