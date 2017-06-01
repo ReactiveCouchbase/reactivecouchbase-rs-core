@@ -1,4 +1,4 @@
-package org.reactivecouchbase.scaladsl
+package org.reactivecouchbase.rs.scaladsl
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
@@ -10,6 +10,7 @@ import com.couchbase.client.java.view.{ViewQuery => CouchbaseViewQuery}
 import scala.concurrent.{ExecutionContext, Future}
 
 sealed trait QueryLike
+sealed trait ViewQueryLike
 
 case class N1qlQuery(n1ql: String, params: JsObject = Json.obj()) extends QueryLike {
   def on(args: JsObject) = copy(params = args)
@@ -17,7 +18,7 @@ case class N1qlQuery(n1ql: String, params: JsObject = Json.obj()) extends QueryL
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-case class SpatialQuery(query: CouchbaseSpatialViewQuery) extends QueryLike
+case class SpatialQuery(query: CouchbaseSpatialViewQuery) extends ViewQueryLike
 
 case class SpatialViewRow[T](id: String, key: JsValue, value: JsValue, geometry: JsValue, doc: Future[JsValue], reader: Reads[T]) {
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
@@ -25,7 +26,7 @@ case class SpatialViewRow[T](id: String, key: JsValue, value: JsValue, geometry:
 
 object SpatialQuery {
   def apply(designDoc: String, view: String, f: CouchbaseSpatialViewQuery => CouchbaseSpatialViewQuery = identity): SpatialQuery = {
-    SpatialQuery(CouchbaseSpatialViewQuery.from(designDoc, view))
+    SpatialQuery(f(CouchbaseSpatialViewQuery.from(designDoc, view)))
   }
 }
 
@@ -35,11 +36,11 @@ case class ViewRow[T](id: String, key: JsValue, value: JsValue, doc: Future[JsVa
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 
-case class ViewQuery(query: CouchbaseViewQuery) extends QueryLike
+case class ViewQuery(query: CouchbaseViewQuery) extends ViewQueryLike
 
 object ViewQuery {
   def apply(designDoc: String, view: String, f: CouchbaseViewQuery => CouchbaseViewQuery = identity): ViewQuery = {
-    ViewQuery(CouchbaseViewQuery.from(designDoc, view))
+    ViewQuery(f(CouchbaseViewQuery.from(designDoc, view)))
   }
 }
 

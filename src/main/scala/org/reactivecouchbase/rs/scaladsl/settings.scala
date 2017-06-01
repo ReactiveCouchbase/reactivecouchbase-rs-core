@@ -1,4 +1,4 @@
-package org.reactivecouchbase.scaladsl
+package org.reactivecouchbase.rs.scaladsl
 
 import com.couchbase.client.java.{PersistTo, ReplicateTo}
 

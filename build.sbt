@@ -1,4 +1,4 @@
-name := """reactivecouchbase-core"""
+name := """reactivecouchbase-rs-core"""
 organization := "org.reactivecouchbase"
 version := "2.0.0-SNAPSHOT"
 scalaVersion := "2.11.8"

@@ -5,7 +5,7 @@ import akka.actor.{ActorSystem, Cancellable}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import com.typesafe.config.ConfigFactory
-import org.reactivecouchbase.scaladsl.{N1qlQuery, ReactiveCouchbase}
+import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase, ViewQuery}
 import org.scalatest._
 import play.api.libs.json.{JsValue, Json}
 
@@ -123,6 +123,9 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     }.map(v => {
       (s"doc-$v", Json.obj("type" -> "timedoc", "message" -> s"message nb $v", "date" -> System.nanoTime()))
     }).via(bucket.insertFlow[JsValue]()).runWith(Sink.seq).await.debug("Res")
+
+
+    bucket.searchView(ViewQuery("doc", "view"))
 
     bucket.close().await
   }

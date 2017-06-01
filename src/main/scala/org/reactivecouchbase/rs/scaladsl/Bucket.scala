@@ -1,4 +1,4 @@
-package org.reactivecouchbase.scaladsl
+package org.reactivecouchbase.rs.scaladsl
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -10,9 +10,8 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
 import com.couchbase.client.java.document.{JsonLongDocument, RawJsonDocument}
-import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.typesafe.config.Config
-import org.reactivecouchbase.scaladsl.Implicits._
+import org.reactivecouchbase.rs.scaladsl.Implicits._
 import org.reactivestreams.Publisher
 import play.api.libs.json._
 import rx.{Observable, RxReactiveStreams}
