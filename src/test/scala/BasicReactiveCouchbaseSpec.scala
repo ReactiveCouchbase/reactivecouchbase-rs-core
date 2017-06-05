@@ -7,6 +7,7 @@ import akka.stream.scaladsl.{Keep, Sink, Source}
 import com.couchbase.client.java.view.Stale
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase, ViewQuery}
+import org.reactivecouchbase.rs.scaladsl.json._
 import org.scalatest._
 import play.api.libs.json.{JsValue, Json}
 

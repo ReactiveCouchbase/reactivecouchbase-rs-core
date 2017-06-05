@@ -1,15 +1,15 @@
-package org.reactivecouchbase.rs.scaladsl
+package org.reactivecouchbase.rs
 
 import rx.Observable
 
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NoStackTrace
 
-case object ObservableCompletedWithoutValue extends RuntimeException("Observable should have produced at least a value ...") with NoStackTrace
+package object scaladsl {
 
-object Implicits {
+  case object ObservableCompletedWithoutValue extends RuntimeException("Observable should have produced at least a value ...") with NoStackTrace
 
-  implicit class EnhancedObservable[T](obs: Observable[T]) {
+  implicit class EnhancedObservable[T](val obs: Observable[T]) extends AnyVal {
     def asFuture: Future[T] = {
       val p = Promise[T]
       obs.subscribe(

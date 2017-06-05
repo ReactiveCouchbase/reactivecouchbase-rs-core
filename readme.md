@@ -7,7 +7,8 @@ Yes, it's happening !!! with **ReactiveStreams** support ;-)
 add a resolver to your `build.sbt` file
 
 ```scala
-resolvers += "reactivecouchbase" at "https://raw.github.com/ReactiveCouchbase/reactivecouchbase-rs-core/master/repository/snapshots"
+resolvers += "reactivecouchbase-rs-snapshots" at "https://raw.github.com/ReactiveCouchbase/reactivecouchbase-rs-core/master/repository/snapshots"
+resolvers += "reactivecouchbase-rs-releases" at "https://raw.github.com/ReactiveCouchbase/reactivecouchbase-rs-core/master/repository/releases"
 ```
 
 or you can build it to get the nice goodies

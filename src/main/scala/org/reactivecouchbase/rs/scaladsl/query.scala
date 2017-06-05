@@ -46,7 +46,6 @@ object ViewQuery {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO : work on naming
 trait QueryResult[T, Mat] {
   def asSource: Source[T, Mat]
   def asSeq(implicit materializer: Materializer): Future[Seq[T]] = asSource.runWith(Sink.seq[T])(materializer)
