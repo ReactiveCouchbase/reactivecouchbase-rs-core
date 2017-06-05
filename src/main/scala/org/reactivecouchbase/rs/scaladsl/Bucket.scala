@@ -51,8 +51,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       .map(p => _cluster.openBucket(config.name, p))
       .getOrElse(_cluster.openBucket(config.name))
     val _bucketManager = _bucket.bucketManager()
-    // TODO : avoid index creation
-    _bucketManager.async().createN1qlPrimaryIndex(true, false)
     (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
   }
 

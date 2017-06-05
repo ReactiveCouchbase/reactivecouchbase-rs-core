@@ -36,6 +36,8 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     val bucket = driver.bucket("default")
 
+    bucket.withManager(_.createN1qlPrimaryIndex(true, false)).await
+
     bucket.remove("doc-1").recover { case _ => Json.obj() }.await
     bucket.remove("doc-2").recover { case _ => Json.obj() }.await
     bucket.remove("doc-3").recover { case _ => Json.obj() }.await
