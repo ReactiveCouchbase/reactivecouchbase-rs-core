@@ -69,7 +69,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def tailSearchFlow[T](query: Long => QueryLike, extractor: (T, Long) => Long, from: Long = 0L)(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Flow[NotUsed, T, NotUsed] = {
-    // TODO : rewrite for perfs
     val ref = new AtomicReference[Long](from)
     val last = new AtomicReference[T]()
     Flow[NotUsed].flatMapConcat { _ =>
@@ -86,7 +85,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   }
 
   def tailViewSearchFlow[T](query: Long => ViewQuery, extractor: (ViewRow[T], Long) => Long, from: Long = 0L)(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Flow[NotUsed, ViewRow[T], NotUsed] = {
-    // TODO : rewrite for perfs
     val ref = new AtomicReference[Long](from)
     val last = new AtomicReference[ViewRow[T]]()
     Flow[NotUsed].flatMapConcat { _ =>
@@ -103,7 +101,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   }
 
   def tailSpatialSearchFlow[T](query: Long => SpatialQuery, extractor: (SpatialViewRow[T], Long) => Long, from: Long = 0L)(implicit ec: ExecutionContext, mat: Materializer, reader: Reads[T]): Flow[NotUsed, SpatialViewRow[T], NotUsed] = {
-    // TODO : rewrite for perfs
     val ref = new AtomicReference[Long](from)
     val last = new AtomicReference[SpatialViewRow[T]]()
     Flow[NotUsed].flatMapConcat { _ =>
