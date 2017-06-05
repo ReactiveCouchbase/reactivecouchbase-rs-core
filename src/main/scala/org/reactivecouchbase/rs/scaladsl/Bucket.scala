@@ -10,10 +10,12 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.couchbase.client.core.ClusterFacade
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
+import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.document.{JsonLongDocument, RawJsonDocument}
-import com.couchbase.client.java.env.CouchbaseEnvironment
+import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvironment}
 import com.couchbase.client.java.repository.AsyncRepository
 import com.typesafe.config.Config
+import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
 import org.reactivestreams.Publisher
 import play.api.libs.json._
 import rx.{Observable, RxReactiveStreams}
@@ -22,15 +24,15 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
-case class BucketConfig(name: String, password: Option[String] = None, hosts: Seq[String])
+case class BucketConfig(name: String, password: Option[String] = None, hosts: Seq[String], env: EnvCustomizer)
 
 object BucketConfig {
   import collection.JavaConversions._
-  def apply(config: Config, system: ActorSystem): BucketConfig = {
+  def apply(config: Config, system: ActorSystem, env: EnvCustomizer): BucketConfig = {
     val name = Try(config.getString("name")).get
     val password = Try(config.getString("password")).toOption
     val hosts = Try(config.getStringList("hosts")).get.toIndexedSeq
-    BucketConfig(name, password, hosts)
+    BucketConfig(name, password, hosts, env)
   }
 }
 
@@ -42,10 +44,9 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   private val defaultWriteSettings: WriteSettings = WriteSettings()
 
-  // TODO : pass complex settings
-  private val _cluster: CouchbaseCluster = CouchbaseCluster.create(config.hosts:_*)
+  private val envBuilder = DefaultCouchbaseEnvironment.builder()
+  private val _cluster: CouchbaseCluster = CouchbaseCluster.create(envBuilder.build(), config.hosts:_*)
 
-  // TODO : implements in a non blocking fashion
   private val (_bucket, _asyncBucket, _bucketManager, _futureBucket) = {
     val _bucket = config.password
       .map(p => _cluster.openBucket(config.name, p))
@@ -417,7 +418,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
             })
         }
         case N1qlQuery(n1ql, args) if args.value.nonEmpty => {
-          val params = JsonConverter.convertToJson(args)
+          val params: JsonObject = JsonConverter.convertToJson(args)
           _asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.parameterized(n1ql, params))
             .flatMap(RxUtils.func1(_.rows()))
             .map(RxUtils.func1 { t =>

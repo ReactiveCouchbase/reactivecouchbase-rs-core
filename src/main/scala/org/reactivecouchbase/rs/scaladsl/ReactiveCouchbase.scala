@@ -4,6 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
+import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
 
 import scala.concurrent.Future
 
@@ -11,10 +12,17 @@ class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
 
   private val pool = new ConcurrentHashMap[String, Bucket]()
 
-  def bucket(name: String): Bucket = {
+  def bucket(name: String, env: EnvCustomizer = identity): Bucket = {
     pool.computeIfAbsent(name, JavaUtils.function { key =>
-      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), system), () => pool.remove(name))
+      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), system, env), () => pool.remove(name))
     })
+  }
+
+  def configureAndPoolBucket(name: String, env: EnvCustomizer): Unit = {
+    pool.computeIfAbsent(name, JavaUtils.function { key =>
+      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), system, env), () => pool.remove(name))
+    })
+    ()
   }
 
   def terminate(): Future[Unit] = {

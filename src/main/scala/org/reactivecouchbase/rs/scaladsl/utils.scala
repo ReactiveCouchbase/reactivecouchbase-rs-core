@@ -2,9 +2,14 @@ package org.reactivecouchbase.rs.scaladsl
 
 import java.util.function.Function
 
-import com.couchbase.client.java.document.json.{JsonArray, JsonObject}
+import com.couchbase.client.java.document.json.{JsonArray, JsonNull, JsonObject, JsonValue}
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
 import play.api.libs.json._
 import rx.functions.{Action0, Action1, Func1}
+
+object TypeUtils {
+  type EnvCustomizer = DefaultCouchbaseEnvironment.Builder => DefaultCouchbaseEnvironment.Builder
+}
 
 object RxUtils {
   def func1[T, R](f: T => R): Func1[T, R] = new Func1[T, R]() {
@@ -30,8 +35,16 @@ object JsonConverter {
 
   import collection.JavaConversions._
 
-  // TODO : fix perfs
-  def convertToJson(value: JsObject) = JsonObject.fromJson(Json.stringify(value))
+  private def convertJsonValue(value: JsValue): Any = value match {
+    case JsNull => JsonNull.INSTANCE
+    case JsString(s) => s
+    case JsBoolean(b) => b
+    case JsNumber(n) => n
+    case JsArray(values) => values.foldLeft(JsonArray.create())((a, b) => a.add(convertJsonValue(b)))
+    case JsObject(values) => values.toSeq.foldLeft(JsonObject.create())((a, b) => a.put(b._1, convertJsonValue(b._2)))
+  }
+
+  def convertToJson(value: JsObject): JsonObject = value.value.toSeq.foldLeft(JsonObject.create())((a, b) => a.put(b._1, convertJsonValue(b._2)))
 
   def convertToJsValue(value: Any): JsValue = value match {
     case a: JsonObject => JsObject(a.toMap.toMap.mapValues(convertToJsValue))
