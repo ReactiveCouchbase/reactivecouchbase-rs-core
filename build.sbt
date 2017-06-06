@@ -2,7 +2,7 @@ name := """reactivecouchbase-rs-core"""
 organization := "org.reactivecouchbase"
 version := "1.0.0-SNAPSHOT"
 scalaVersion := "2.12.2"
-crossScalaVersions := Seq(scalaVersion.value, "2.11.8")
+crossScalaVersions := Seq(scalaVersion.value, "2.11.11")
 
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.1",
