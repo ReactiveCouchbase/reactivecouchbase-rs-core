@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.NotUsed
-import akka.actor.{ActorSystem, Cancellable}
+import akka.actor.Cancellable
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.couchbase.client.core.ClusterFacade
@@ -16,6 +16,7 @@ import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvi
 import com.couchbase.client.java.repository.AsyncRepository
 import com.typesafe.config.Config
 import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
+import org.reactivecouchbase.rs.scaladsl.json.JsonConverter
 import org.reactivestreams.Publisher
 import play.api.libs.json._
 import rx.{Observable, RxReactiveStreams}
