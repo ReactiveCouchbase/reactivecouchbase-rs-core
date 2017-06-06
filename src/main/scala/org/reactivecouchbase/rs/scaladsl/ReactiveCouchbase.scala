@@ -1,26 +1,26 @@
 package org.reactivecouchbase.rs.scaladsl
 
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, Executors}
 
-import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
+class ReactiveCouchbase(val config: Config) {
 
   private val pool = new ConcurrentHashMap[String, Bucket]()
 
+
   def bucket(name: String, env: EnvCustomizer = identity): Bucket = {
     pool.computeIfAbsent(name, JavaUtils.function { key =>
-      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), system, env), () => pool.remove(name))
+      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), env), () => pool.remove(name))
     })
   }
 
   def configureAndPoolBucket(name: String, env: EnvCustomizer): Unit = {
     pool.computeIfAbsent(name, JavaUtils.function { key =>
-      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), system, env), () => pool.remove(name))
+      Bucket(BucketConfig(config.getConfig(s"buckets.$key"), env), () => pool.remove(name))
     })
     ()
   }
@@ -29,21 +29,15 @@ class ReactiveCouchbase(val config: Config, val system: ActorSystem) {
 
     import collection.JavaConversions._
 
-    implicit val ec = system.dispatcher
+    implicit val ec = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
-    system.terminate().flatMap { _ =>
-      Future.sequence(pool.toSeq.map(_._2.close())).map(_ => ())
-    }
+    Future.sequence(pool.toSeq.map(_._2.close())).map(_ => ())
   }
 }
 
 object ReactiveCouchbase {
   def apply(config: Config): ReactiveCouchbase = {
-    val actualConfig = config.withFallback(ConfigFactory.parseString("akka {}"))
-    new ReactiveCouchbase(actualConfig, ActorSystem("ReactiveCouchbaseSystem", actualConfig.getConfig("akka")))
-  }
-  def apply(config: Config, system: ActorSystem): ReactiveCouchbase = {
     val actualConfig = config.withFallback(ConfigFactory.empty())
-    new ReactiveCouchbase(actualConfig, system)
+    new ReactiveCouchbase(actualConfig)
   }
 }

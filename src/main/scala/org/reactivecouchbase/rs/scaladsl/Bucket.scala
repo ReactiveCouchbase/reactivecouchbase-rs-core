@@ -28,7 +28,7 @@ case class BucketConfig(name: String, password: Option[String] = None, hosts: Se
 
 object BucketConfig {
   import collection.JavaConversions._
-  def apply(config: Config, system: ActorSystem, env: EnvCustomizer): BucketConfig = {
+  def apply(config: Config, env: EnvCustomizer): BucketConfig = {
     val name = Try(config.getString("name")).get
     val password = Try(config.getString("password")).toOption
     val hosts = Try(config.getStringList("hosts")).get.toIndexedSeq
