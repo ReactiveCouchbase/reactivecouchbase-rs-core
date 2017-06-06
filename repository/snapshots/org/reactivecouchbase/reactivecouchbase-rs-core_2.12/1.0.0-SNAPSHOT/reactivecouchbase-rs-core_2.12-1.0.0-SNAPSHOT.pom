@@ -2,7 +2,7 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.reactivecouchbase</groupId>
-    <artifactId>reactivecouchbase-rs-core_2.11</artifactId>
+    <artifactId>reactivecouchbase-rs-core_2.12</artifactId>
     <packaging>jar</packaging>
     <description>reactivecouchbase-rs-core</description>
     <version>1.0.0-SNAPSHOT</version>
@@ -33,7 +33,7 @@
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.11.8</version>
+            <version>2.12.2</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>
@@ -47,17 +47,17 @@
         </dependency>
         <dependency>
             <groupId>com.typesafe.play</groupId>
-            <artifactId>play-json_2.11</artifactId>
+            <artifactId>play-json_2.12</artifactId>
             <version>2.6.0-RC2</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-actor_2.11</artifactId>
+            <artifactId>akka-actor_2.12</artifactId>
             <version>2.5.2</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-stream_2.11</artifactId>
+            <artifactId>akka-stream_2.12</artifactId>
             <version>2.5.2</version>
         </dependency>
         <dependency>
@@ -67,7 +67,7 @@
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
+            <artifactId>scalatest_2.12</artifactId>
             <version>3.0.2</version>
             <scope>test</scope>
         </dependency>
