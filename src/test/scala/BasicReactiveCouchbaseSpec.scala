@@ -32,7 +32,7 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
         |    hosts = ["127.0.0.1"]
         |  }
         |}
-      """.stripMargin), system)
+      """.stripMargin))
 
     val bucket = driver.bucket("default")
 

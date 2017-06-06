@@ -57,7 +57,7 @@ object ReactiveCouchbaseTest extends App {
       |    hosts = ["127.0.0.1"]
       |  }
       |}
-    """.stripMargin), system)
+    """.stripMargin))
 
   val bucket = driver.bucket("default")
 
