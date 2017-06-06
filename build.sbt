@@ -1,16 +1,16 @@
 name := """reactivecouchbase-rs-core"""
 organization := "org.reactivecouchbase"
 version := "1.0.0-SNAPSHOT"
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.2"
 
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.1",
-  "com.couchbase.client" % "java-client" % "2.4.1",
-  "com.typesafe.play" %% "play-json" % "2.4.10",
-  "com.typesafe.akka" %% "akka-actor" % "2.4.11.1",
-  "com.typesafe.akka" %% "akka-stream" % "2.4.11.1",
+  "com.couchbase.client" % "java-client" % "2.4.5",
+  "com.typesafe.play" %% "play-json" % "2.6.0-RC2",
+  "com.typesafe.akka" %% "akka-actor" % "2.5.2",
+  "com.typesafe.akka" %% "akka-stream" % "2.5.2",
   "io.reactivex" % "rxjava-reactive-streams" % "1.2.1",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.2" % "test"
 ) 
 
 val local: Project.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
