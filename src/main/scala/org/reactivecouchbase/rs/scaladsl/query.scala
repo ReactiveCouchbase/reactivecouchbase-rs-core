@@ -2,10 +2,12 @@ package org.reactivecouchbase.rs.scaladsl
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
+import akka.util.ByteString
 import org.reactivestreams.Publisher
-import play.api.libs.json._
 import com.couchbase.client.java.view.{SpatialViewQuery => CouchbaseSpatialViewQuery}
 import com.couchbase.client.java.view.{ViewQuery => CouchbaseViewQuery}
+import org.reactivecouchbase.rs.scaladsl.json.JsonReads
+import play.api.libs.json.{JsObject, JsValue, Json}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -20,7 +22,7 @@ case class N1qlQuery(n1ql: String, params: JsObject = Json.obj()) extends QueryL
 
 case class SpatialQuery(query: CouchbaseSpatialViewQuery) extends ViewQueryLike
 
-case class SpatialViewRow[T](id: String, key: JsValue, value: JsValue, geometry: JsValue, doc: Future[JsValue], reader: Reads[T]) {
+case class SpatialViewRow[T](id: String, key: JsValue, value: JsValue, geometry: JsValue, doc: Future[ByteString], reader: JsonReads[T]) {
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 
@@ -32,7 +34,7 @@ object SpatialQuery {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-case class ViewRow[T](id: String, key: JsValue, value: JsValue, doc: Future[JsValue], reader: Reads[T]) {
+case class ViewRow[T](id: String, key: JsValue, value: JsValue, doc: Future[ByteString], reader: JsonReads[T]) {
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 

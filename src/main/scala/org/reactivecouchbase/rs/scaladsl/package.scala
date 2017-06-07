@@ -1,11 +1,15 @@
 package org.reactivecouchbase.rs
 
+import akka.stream.Materializer
 import rx.Observable
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.control.NoStackTrace
 
 package object scaladsl {
+
+  type ExecCtx[_] = ExecutionContext
+  type Mat[_] = Materializer
 
   case object ObservableCompletedWithoutValue extends RuntimeException("Observable should have produced at least a value ...") with NoStackTrace
 
