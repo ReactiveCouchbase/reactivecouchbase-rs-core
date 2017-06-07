@@ -16,5 +16,6 @@ package object json {
 
   // val defaultByteStringReads: JsonReads[ByteString] = JsonReads(bs => JsonSuccess(bs))
   // val defaultByteStringWrites: JsonWrites[ByteString] = JsonWrites(jsv => jsv)
+
   // implicit val defaultByteStringFormat: JsonFormat[ByteString] = JsonFormat(defaultByteStringReads, defaultByteStringWrites)
 }

@@ -17,9 +17,8 @@ import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvi
 import com.couchbase.client.java.repository.AsyncRepository
 import com.typesafe.config.Config
 import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
-import org.reactivecouchbase.rs.scaladsl.json.{JsonConverter, JsonError, JsonFormat, JsonReads, JsonSuccess, JsonWrites}
+import org.reactivecouchbase.rs.scaladsl.json.{JsonConverter, JsonError, JsonFormat, JsonReads, JsonSuccess}
 import org.reactivestreams.Publisher
-import play.api.libs.json.Json
 import rx.{Observable, RxReactiveStreams}
 
 import scala.concurrent.duration.FiniteDuration
