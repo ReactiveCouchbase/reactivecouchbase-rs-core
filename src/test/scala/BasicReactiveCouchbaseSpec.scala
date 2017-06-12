@@ -6,8 +6,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import com.typesafe.config.ConfigFactory
 import org.reactivecouchbase.rs.scaladsl.json._
-import org.reactivecouchbase.rs.scaladsl.json.{PlayJsonQueryParams => Query}
-import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase }
+import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest._
 import play.api.libs.json._
 

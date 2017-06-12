@@ -3,17 +3,22 @@ package org.reactivecouchbase.rs.scaladsl.json
 import akka.util.ByteString
 import com.couchbase.client.java.document.json.JsonObject
 
+import scala.util.{Failure, Success, Try}
+
 case class JsonValidationError(messages: Seq[String]) {
   lazy val message = messages.last
 }
 
-trait JsonReads[A] { self =>
+trait JsonReads[+A] { self =>
   def reads(json: ByteString): JsonResult[A]
 }
 
 object JsonReads {
   def apply[A](f: ByteString => JsonResult[A]): JsonReads[A] = new JsonReads[A] {
-    override def reads(json: ByteString): JsonResult[A] = f(json)
+    override def reads(json: ByteString): JsonResult[A] = Try(f(json)) match {
+      case Success(s) => s
+      case Failure(e) => JsonError(Seq(JsonValidationError(Seq(e.getMessage))))
+    }
   }
 }
 
