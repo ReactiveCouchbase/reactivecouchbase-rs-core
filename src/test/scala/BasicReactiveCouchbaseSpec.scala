@@ -48,8 +48,8 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     bucket.remove("key2").recover { case _ => Json.obj() }.await.debug("Remove2")
     bucket.remove("counter").recover { case _ => Json.obj() }.await.debug("Remove3")
 
-    bucket.insert("key1", Json.obj("message" -> "Hello World", "type" -> "doc").as[JsValue]).await.debug("Insert1", a => Json.prettyPrint(a))
-    bucket.insert("key2", Json.obj("message" -> "Goodbye World", "type" -> "doc").as[JsValue]).await.debug("Insert2", a => Json.prettyPrint(a))
+    bucket.insert[JsValue]("key1", Json.obj("message" -> "Hello World", "type" -> "doc")).await.debug("Insert1", a => Json.prettyPrint(a))
+    bucket.insert[JsValue]("key2", Json.obj("message" -> "Goodbye World", "type" -> "doc")).await.debug("Insert2", a => Json.prettyPrint(a))
 
     val maybeDoc1 = bucket.get("key1").await.debug("maybeDoc1")
     val maybeDoc2 = bucket.get("key2").await.debug("maybeDoc2")
