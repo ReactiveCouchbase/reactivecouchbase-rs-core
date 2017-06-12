@@ -9,7 +9,7 @@ case class JsonValidationError(messages: Seq[String]) {
   lazy val message = messages.last
 }
 
-trait JsonReads[+A] { self =>
+trait JsonReads[A] { self =>
   def reads(json: ByteString): JsonResult[A]
 }
 
