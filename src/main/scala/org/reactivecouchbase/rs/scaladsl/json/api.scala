@@ -11,9 +11,7 @@ trait JsonReads[A] { self =>
 }
 
 object JsonReads {
-  def apply[A](f: ByteString => JsonResult[A]): JsonReads[A] = new JsonReads[A] {
-    def reads(json: ByteString) = f(json)
-  }
+  def apply[A](f: ByteString => JsonResult[A]): JsonReads[A] = (json: ByteString) => f(json)
 }
 
 trait JsonWrites[-A] { self =>
@@ -21,9 +19,7 @@ trait JsonWrites[-A] { self =>
 }
 
 object JsonWrites {
-  def apply[A](f: A => ByteString): JsonWrites[A] = new JsonWrites[A] {
-    def writes(a: A): ByteString = f(a)
-  }
+  def apply[A](f: A => ByteString): JsonWrites[A] = (a: A) => f(a)
 }
 
 trait JsonFormat[A] extends JsonWrites[A] with JsonReads[A]
@@ -34,7 +30,6 @@ object JsonFormat {
     def writes(o: A) = tjs.writes(o)
   }
 }
-
 
 sealed trait JsonResult[+A] { self =>
 
