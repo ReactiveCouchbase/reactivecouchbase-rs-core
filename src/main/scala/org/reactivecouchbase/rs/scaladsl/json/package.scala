@@ -10,7 +10,9 @@ package object json {
   val defaultPlayJsonWrites: JsonWrites[JsValue] = JsonWrites(jsv => ByteString(Json.stringify(jsv)))
 
   implicit val defaultPlayJsonFormat: JsonFormat[JsValue] = JsonFormat(defaultPlayJsonReads, defaultPlayJsonWrites)
-  implicit val defaultPlayJsonConverter: CouchbaseJsonDocConverter[JsValue] = (ref: AnyRef) => JsonConverter.convertToJsValue(ref)
+  implicit val defaultPlayJsonConverter: CouchbaseJsonDocConverter[JsValue] = new CouchbaseJsonDocConverter[JsValue] {
+    override def convert(ref: AnyRef): JsValue = JsonConverter.convertToJsValue(ref)
+  }
   implicit val defaultPlayJsonEmptyQueryParams: () => QueryParams = () => PlayJsonQueryParams()
 
   case class PlayJsonQueryParams(query: JsObject = Json.obj()) extends QueryParams {
