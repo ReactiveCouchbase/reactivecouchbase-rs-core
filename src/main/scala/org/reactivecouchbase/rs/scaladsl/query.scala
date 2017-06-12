@@ -3,26 +3,34 @@ package org.reactivecouchbase.rs.scaladsl
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
+import com.couchbase.client.java.document.RawJsonDocument
+import com.couchbase.client.java.view.{AsyncSpatialViewRow, AsyncViewRow, SpatialViewQuery => CouchbaseSpatialViewQuery, ViewQuery => CouchbaseViewQuery}
+import org.reactivecouchbase.rs.scaladsl.json.{CouchbaseJsonDocConverter, JsonReads, QueryParams}
 import org.reactivestreams.Publisher
-import com.couchbase.client.java.view.{SpatialViewQuery => CouchbaseSpatialViewQuery}
-import com.couchbase.client.java.view.{ViewQuery => CouchbaseViewQuery}
-import org.reactivecouchbase.rs.scaladsl.json.JsonReads
-import play.api.libs.json.{JsObject, JsValue, Json}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 sealed trait QueryLike
 sealed trait ViewQueryLike
 
-case class N1qlQuery(n1ql: String, params: JsObject = Json.obj()) extends QueryLike {
-  def on(args: JsObject) = copy(params = args)
+case class N1qlQuery(query: String, params: QueryParams) extends QueryLike {
+  def on(args: QueryParams) = copy(params = args)
+}
+
+object N1qlQuery {
+  def apply(query: String)(implicit empty: () => QueryParams): N1qlQuery = N1qlQuery(query, empty())
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 case class SpatialQuery(query: CouchbaseSpatialViewQuery) extends ViewQueryLike
 
-case class SpatialViewRow[T](id: String, key: JsValue, value: JsValue, geometry: JsValue, doc: Future[ByteString], reader: JsonReads[T]) {
+case class SpatialViewRow[T](underlying: AsyncSpatialViewRow, reader: JsonReads[T]) {
+  def id: String = underlying.id()
+  def key[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.key())
+  def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.value())
+  def doc(implicit ec: ExecutionContext): Future[ByteString] = underlying.document(classOf[RawJsonDocument])
+    .asFuture.filter(_ != null).map(a => ByteString(a.content()))
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 
@@ -34,7 +42,12 @@ object SpatialQuery {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-case class ViewRow[T](id: String, key: JsValue, value: JsValue, doc: Future[ByteString], reader: JsonReads[T]) {
+case class ViewRow[T](underlying: AsyncViewRow, reader: JsonReads[T]) {
+  def id: String = underlying.id()
+  def key[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.key())
+  def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.value())
+  def doc(implicit ec: ExecutionContext): Future[ByteString] = underlying.document(classOf[RawJsonDocument])
+    .asFuture.filter(_ != null).map(a => ByteString(a.content()))
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 

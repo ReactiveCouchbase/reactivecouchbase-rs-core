@@ -1,6 +1,7 @@
 package org.reactivecouchbase.rs.scaladsl.json
 
 import akka.util.ByteString
+import com.couchbase.client.java.document.json.JsonObject
 
 case class JsonValidationError(messages: Seq[String]) {
   lazy val message = messages.last
@@ -29,6 +30,16 @@ object JsonFormat {
     def reads(json: ByteString) = fjs.reads(json)
     def writes(o: A) = tjs.writes(o)
   }
+}
+
+trait CouchbaseJsonDocConverter[T] {
+  def convert(ref: AnyRef): T
+}
+
+trait QueryParams {
+  def isEmpty: Boolean
+  def nonEmpty: Boolean = !isEmpty
+  def toJsonObject: JsonObject
 }
 
 sealed trait JsonResult[+A] { self =>

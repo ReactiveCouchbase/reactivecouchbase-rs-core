@@ -3,7 +3,7 @@ package org.reactivecouchbase.rs.scaladsl.json
 import com.couchbase.client.java.document.json.{JsonArray, JsonNull, JsonObject}
 import play.api.libs.json._
 
-object JsonConverter {
+private[json] object JsonConverter {
 
   import collection.JavaConversions._
 

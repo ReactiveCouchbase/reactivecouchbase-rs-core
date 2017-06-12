@@ -1,17 +1,17 @@
 import java.util.concurrent.TimeUnit
 
-import akka.{Done, NotUsed}
-import akka.actor.{ActorSystem, Cancellable}
+import akka.NotUsed
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
-import com.couchbase.client.java.view.Stale
 import com.typesafe.config.ConfigFactory
-import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase, ViewQuery}
 import org.reactivecouchbase.rs.scaladsl.json._
+import org.reactivecouchbase.rs.scaladsl.json.{PlayJsonQueryParams => Query}
+import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase }
 import org.scalatest._
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json._
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
 
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
@@ -68,8 +68,8 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     val results1 = bucket.search(N1qlQuery("select message from default")).asSeq.await.debug("results1")
     val results2 = bucket.search(N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
     val results3 = bucket.search(N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
-    val results4 = bucket.search(N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc"))).asSeq.await.debug("results4")
-    val results5 = bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc")))
+    val results4 = bucket.search(N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc").asQueryParams)).asSeq.await.debug("results4")
+    val results5 = bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc").asQueryParams))
       .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
       .runWith(Sink.seq[String]).await.debug("results5")
 

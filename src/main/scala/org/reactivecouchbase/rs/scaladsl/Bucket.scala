@@ -17,7 +17,7 @@ import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvi
 import com.couchbase.client.java.repository.AsyncRepository
 import com.typesafe.config.Config
 import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
-import org.reactivecouchbase.rs.scaladsl.json.{JsonConverter, JsonError, JsonFormat, JsonReads, JsonSuccess}
+import org.reactivecouchbase.rs.scaladsl.json.{JsonError, JsonFormat, JsonReads, JsonSuccess}
 import org.reactivestreams.Publisher
 import rx.{Observable, RxReactiveStreams}
 
@@ -370,16 +370,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     SimpleQueryResult(() => {
       val obs: Observable[SpatialViewRow[T]] = _asyncBucket.query(query.query)
         .flatMap(RxUtils.func1(_.rows()))
-        .map(RxUtils.func1 { row =>
-          SpatialViewRow[T](
-            row.id(),
-            JsonConverter.convertToJsValue(row.key()),
-            JsonConverter.convertToJsValue(row.value()),
-            JsonConverter.convertToJsValue(row.geometry()),
-            row.document(classOf[RawJsonDocument]).asFuture.filter(_ != null).map(a => ByteString(a.content())),
-            reader
-          )
-        })
+        .map(RxUtils.func1 { row => SpatialViewRow[T](row, reader) })
       Source.fromPublisher[SpatialViewRow[T]](RxReactiveStreams.toPublisher[SpatialViewRow[T]](obs))
     })
   }
@@ -388,15 +379,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     SimpleQueryResult(() => {
       val obs: Observable[ViewRow[T]] = _asyncBucket.query(query.query)
         .flatMap(RxUtils.func1(_.rows()))
-        .map(RxUtils.func1 { row =>
-          ViewRow(
-            row.id(),
-            JsonConverter.convertToJsValue(row.key()),
-            JsonConverter.convertToJsValue(row.value()),
-            row.document(classOf[RawJsonDocument]).asFuture.filter(_ != null).map(a => ByteString(a.content())),
-            reader
-          )
-        })
+        .map(RxUtils.func1 { row => ViewRow(row, reader) })
       Source.fromPublisher[ViewRow[T]](RxReactiveStreams.toPublisher[ViewRow[T]](obs))
     })
   }
@@ -404,7 +387,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   def search[T](query: QueryLike)(implicit ec: ExecutionContext, mat: Materializer, reader: JsonReads[T]): QueryResult[T, NotUsed] = {
     SimpleQueryResult(() => {
       val obs: Observable[T] = query match {
-        case N1qlQuery(n1ql, args) if args.value.isEmpty => {
+        case N1qlQuery(n1ql, args) if args.isEmpty => {
           _asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
             .flatMap(RxUtils.func1(_.rows()))
             .map(RxUtils.func1 { t =>
@@ -414,8 +397,8 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
               }
             })
         }
-        case N1qlQuery(n1ql, args) if args.value.nonEmpty => {
-          val params: JsonObject = JsonConverter.convertToJson(args)
+        case N1qlQuery(n1ql, args) if args.nonEmpty => {
+          val params: JsonObject = args.toJsonObject
           _asyncBucket.query(com.couchbase.client.java.query.N1qlQuery.parameterized(n1ql, params))
             .flatMap(RxUtils.func1(_.rows()))
             .map(RxUtils.func1 { t =>
