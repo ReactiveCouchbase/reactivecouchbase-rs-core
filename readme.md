@@ -130,3 +130,37 @@ class ApiController @Inject()(couchbase: Couchbase)(implicit ec: ExecutionContex
   }
 }
 ```
+
+## What if I want to use a JSON lib other than Play Json ?
+
+you can easily do that, actually everything linked to Play Json is imported from 
+
+```scala
+import org.reactivecouchbase.rs.scaladsl.json._
+```
+
+then you just have to reimplement a few things
+
+```scala
+import akka.util.ByteString
+import com.couchbase.client.java.document.json.JsonObject
+import org.reactivecouchbase.rs.scaladsl.json.{JsonReads, JsonWrites, JsonSuccess, QueryParams}
+import foo.bar.jsonlib.{JsonNode, JsonObj}
+
+val read: JsonReads[JsonNode] = JsonReads(bs => JsonSuccess(JsonNode.parse(bs.utf8String)))
+val write: JsonWrites[JsonNode] = JsonWrites(jsv => ByteString(JsonNode.stringify(jsv)))
+
+implicit val defaultByteStringFormat: JsonFormat[JsonNode] = JsonFormat(read, write)
+
+implicit val defaultByteStringConverter: CouchbaseJsonDocConverter[JsonNode] = new CouchbaseJsonDocConverter[JsonNode] {
+  override def convert(ref: AnyRef): JsonNode = ...
+}
+implicit val defaultPlayJsonEmptyQueryParams: () => QueryParams = () => ByteStringQueryParams()
+
+case class JsonObjQueryParams(query: JsonObj = ByteString.empty) extends QueryParams {
+  override def isEmpty: Boolean = !query.hasValue
+  override def toJsonObject: JsonObject = ...
+}
+```
+
+You have a few examples athttps://github.com/ReactiveCouchbase/reactivecouchbase-rs-core/blob/master/src/main/scala/org/reactivecouchbase/rs/scaladsl/json/package.scala, https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core/blob/master/src/main/scala/org/reactivecouchbase/rs/scaladsl/json/bytestring.scala and at https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core/blob/master/src/main/scala/org/reactivecouchbase/rs/scaladsl/json/converter.scala#L21-L31

@@ -62,11 +62,12 @@ object ViewQuery {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 trait QueryResult[T, Mat] {
+  // conversions
   def asSource: Source[T, Mat]
   def asSeq(implicit materializer: Materializer): Future[Seq[T]] = asSource.runWith(Sink.seq[T])(materializer)
   def asPublisher(fanout: Boolean = true)(implicit materializer: Materializer): Publisher[T] = asSource.runWith(Sink.asPublisher(fanout))(materializer)
   def asHeadOption(implicit materializer: Materializer): Future[Option[T]] = asSource.runWith(Sink.headOption)(materializer)
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // transformations
   def map[U](f: T => U): QueryResult[U, Mat] = SimpleQueryResult(() => asSource.map(f))
   def flatMap[U, M](f: T => Source[U, M]): QueryResult[U, Mat] = SimpleQueryResult(() => asSource.flatMapConcat(f))
   def fold[U](zero: U)(reducer: (U, T) => U)(implicit materializer: Materializer): Future[U] = asSource.runFold(zero)(reducer)(materializer)
