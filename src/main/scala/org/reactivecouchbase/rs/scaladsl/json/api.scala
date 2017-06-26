@@ -51,6 +51,11 @@ trait QueryParams {
   def toJsonObject: JsonObject
 }
 
+object EmptyQueryParam extends QueryParams {
+  override def isEmpty: Boolean = true
+  override def toJsonObject: JsonObject = JsonObject.empty()
+}
+
 sealed trait JsonResult[+A] { self =>
 
   def isSuccess: Boolean

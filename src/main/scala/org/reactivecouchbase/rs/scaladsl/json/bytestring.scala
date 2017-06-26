@@ -14,7 +14,6 @@ package object bytestring {
   implicit val defaultByteStringConverter: CouchbaseJsonDocConverter[ByteString] = new CouchbaseJsonDocConverter[ByteString] {
     override def convert(ref: AnyRef): ByteString = ByteString(Json.stringify(JsonConverter.convertToJsValue(ref)))
   }
-  implicit val defaultPlayJsonEmptyQueryParams: () => QueryParams = () => ByteStringQueryParams()
 
   case class ByteStringQueryParams(query: ByteString = ByteString.empty) extends QueryParams {
     override def isEmpty: Boolean = query.isEmpty

@@ -155,7 +155,6 @@ implicit val defaultByteStringFormat: JsonFormat[JsonNode] = JsonFormat(read, wr
 implicit val defaultByteStringConverter: CouchbaseJsonDocConverter[JsonNode] = new CouchbaseJsonDocConverter[JsonNode] {
   override def convert(ref: AnyRef): JsonNode = ...
 }
-implicit val defaultPlayJsonEmptyQueryParams: () => QueryParams = () => ByteStringQueryParams()
 
 case class JsonObjQueryParams(query: JsonObj = ByteString.empty) extends QueryParams {
   override def isEmpty: Boolean = !query.hasValue

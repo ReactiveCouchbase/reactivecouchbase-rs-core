@@ -14,7 +14,6 @@ package object json {
   implicit val defaultPlayJsonConverter: CouchbaseJsonDocConverter[JsValue] = new CouchbaseJsonDocConverter[JsValue] {
     override def convert(ref: AnyRef): JsValue = JsonConverter.convertToJsValue(ref)
   }
-  implicit val defaultPlayJsonEmptyQueryParams: () => QueryParams = () => PlayJsonQueryParams()
 
   case class PlayJsonQueryParams(query: JsObject = Json.obj()) extends QueryParams {
     override def isEmpty: Boolean = query.value.isEmpty

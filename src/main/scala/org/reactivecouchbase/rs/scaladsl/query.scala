@@ -5,7 +5,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import com.couchbase.client.java.document.RawJsonDocument
 import com.couchbase.client.java.view.{AsyncSpatialViewRow, AsyncViewRow, SpatialViewQuery => CouchbaseSpatialViewQuery, ViewQuery => CouchbaseViewQuery}
-import org.reactivecouchbase.rs.scaladsl.json.{CouchbaseJsonDocConverter, JsonReads, QueryParams}
+import org.reactivecouchbase.rs.scaladsl.json.{CouchbaseJsonDocConverter, EmptyQueryParam, JsonReads, QueryParams}
 import org.reactivestreams.Publisher
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -18,7 +18,7 @@ case class N1qlQuery(query: String, params: QueryParams) extends QueryLike {
 }
 
 object N1qlQuery {
-  def apply(query: String)(implicit empty: () => QueryParams): N1qlQuery = N1qlQuery(query, empty())
+  def apply(query: String): N1qlQuery = N1qlQuery(query, EmptyQueryParam)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
