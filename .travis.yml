@@ -5,6 +5,5 @@ jdk:
    - oraclejdk8
 scala:
    - 2.12.2
-   - 2.11.11
 script:
    - sbt ';clean;+compile'
