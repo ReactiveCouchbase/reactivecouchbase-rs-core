@@ -74,7 +74,7 @@ trait QueryResult[T, Mat] {
   def foldAsync[U](zero: U)(reducer: (U, T) => Future[U])(implicit materializer: Materializer): Future[U] = asSource.runFoldAsync(zero)(reducer)(materializer)
 }
 
-private[scaladsl] case class SimpleQueryResult[T, Mat](source: () => Source[T, Mat]) extends QueryResult[T, Mat] {
-  private lazy val lazySource: Source[T, Mat] = source()
-  override def asSource: Source[T, Mat] = lazySource
+private[scaladsl] case class SimpleQueryResult[T, M](source: () => Source[T, M]) extends QueryResult[T, M] {
+  private lazy val lazySource: Source[T, M] = source()
+  override def asSource: Source[T, M] = lazySource
 }

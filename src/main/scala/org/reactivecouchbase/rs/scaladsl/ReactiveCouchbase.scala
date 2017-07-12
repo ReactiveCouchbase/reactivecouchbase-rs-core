@@ -11,7 +11,6 @@ class ReactiveCouchbase(val config: Config) {
 
   private val pool = new ConcurrentHashMap[String, Bucket]()
 
-
   def bucket(name: String, env: EnvCustomizer = identity): Bucket = {
     pool.computeIfAbsent(name, JavaUtils.function { key =>
       Bucket(BucketConfig(config.getConfig(s"buckets.$key"), env), () => pool.remove(name))

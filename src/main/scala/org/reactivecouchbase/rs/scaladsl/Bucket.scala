@@ -57,8 +57,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
   }
 
-  private val durationToExpiry = (expiration:Duration) => ((if (expiration < 30.days) 0L else System.currentTimeMillis / 1000L) + expiration.toSeconds).toInt
-
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -248,7 +246,6 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   // TODO : sets operations
   // TODO : lists operations
   // TODO : queues operations
-  // TODO : getAndTouch
   // TODO : lock operations
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -335,7 +332,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       bucket.insert(
         RawJsonDocument.create(
           key,
-          durationToExpiry(settings.expiration),
+          settings.expiration.asCouchbaseExpiry,
           format.writes(slug).utf8String
         ),
         settings.persistTo,
@@ -351,7 +348,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       bucket.upsert(
         RawJsonDocument.create(
           key,
-          durationToExpiry (settings.expiration ),
+          settings.expiration.asCouchbaseExpiry,
           format.writes(slug).utf8String
         ),
         settings.persistTo,
@@ -370,7 +367,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   }
 
   def getAndTouch[T](key: String, expiration:Duration)(implicit ec: ExecutionContext, reader: JsonReads[T]): Future[Option[T]] = {
-    _futureBucket.flatMap(b => b.getAndTouch(key, durationToExpiry(expiration), classOf[RawJsonDocument]).asFuture)
+    _futureBucket.flatMap(b => b.getAndTouch(key, expiration.asCouchbaseExpiry, classOf[RawJsonDocument]).asFuture)
       .filter(_ != null)
       .map(doc => ByteString(doc.content()))
       .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {

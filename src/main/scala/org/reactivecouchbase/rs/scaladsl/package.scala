@@ -5,6 +5,7 @@ import rx.Observable
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.control.NoStackTrace
+import scala.concurrent.duration._
 
 package object scaladsl {
 
@@ -26,6 +27,13 @@ package object scaladsl {
         }
       )
       p.future
+    }
+  }
+
+  implicit class EnhancedDuration(val duration: Duration) extends AnyVal {
+    def asCouchbaseExpiry: Int = {
+      val start = if (duration < 30.days) 0L else System.currentTimeMillis / 1000L
+      (start + duration.toSeconds).toInt
     }
   }
 }
