@@ -42,7 +42,8 @@ object JsonFormat {
 }
 
 trait CouchbaseJsonDocConverter[T] {
-  def convert(ref: AnyRef): T
+  def convertTo(ref: AnyRef): T
+  def convertFrom(ref: T): Any
 }
 
 trait QueryParams {

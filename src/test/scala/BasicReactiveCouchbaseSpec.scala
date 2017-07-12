@@ -171,5 +171,6 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     bucket.maps.get[String]("data.structures.map", "key3").await shouldEqual None
 
     bucket.close().await
+    system.terminate
   }
 }

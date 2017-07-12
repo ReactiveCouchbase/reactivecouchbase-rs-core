@@ -27,8 +27,8 @@ case class SpatialQuery(query: CouchbaseSpatialViewQuery) extends ViewQueryLike
 
 case class SpatialViewRow[T](underlying: AsyncSpatialViewRow, reader: JsonReads[T]) {
   def id: String = underlying.id()
-  def key[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.key())
-  def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.value())
+  def key[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convertTo(underlying.key())
+  def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convertTo(underlying.value())
   def doc(implicit ec: ExecutionContext): Future[ByteString] = underlying.document(classOf[RawJsonDocument])
     .asFuture.filter(_ != null).map(a => ByteString(a.content()))
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
@@ -44,8 +44,8 @@ object SpatialQuery {
 
 case class ViewRow[T](underlying: AsyncViewRow, reader: JsonReads[T]) {
   def id: String = underlying.id()
-  def key[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.key())
-  def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convert(underlying.value())
+  def key[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convertTo(underlying.key())
+  def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convertTo(underlying.value())
   def doc(implicit ec: ExecutionContext): Future[ByteString] = underlying.document(classOf[RawJsonDocument])
     .asFuture.filter(_ != null).map(a => ByteString(a.content()))
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)

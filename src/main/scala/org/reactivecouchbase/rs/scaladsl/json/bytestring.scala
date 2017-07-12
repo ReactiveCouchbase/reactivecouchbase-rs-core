@@ -12,7 +12,8 @@ package object bytestring {
   implicit val defaultByteStringFormat: JsonFormat[ByteString] = JsonFormat(defaultByteStringReads, defaultByteStringWrites)
 
   implicit val defaultByteStringConverter: CouchbaseJsonDocConverter[ByteString] = new CouchbaseJsonDocConverter[ByteString] {
-    override def convert(ref: AnyRef): ByteString = ByteString(Json.stringify(JsonConverter.convertToJsValue(ref)))
+    override def convertTo(ref: AnyRef): ByteString = ByteString(Json.stringify(JsonConverter.convertToJsValue(ref)))
+    override def convertFrom(ref: ByteString): Any = JsonConverter.convertJsonValue(Json.parse(ref.utf8String))
   }
 
   case class ByteStringQueryParams(query: ByteString = ByteString.empty) extends QueryParams {

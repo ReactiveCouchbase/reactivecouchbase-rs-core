@@ -7,13 +7,14 @@ private[json] object JsonConverter {
 
   import collection.JavaConversions._
 
-  private def convertJsonValue(value: JsValue): Any = value match {
+  def convertJsonValue(value: JsValue): Any = value match {
     case JsNull => JsonNull.INSTANCE
     case JsString(s) => s
     case JsBoolean(b) => b
     case JsNumber(n) => n
     case JsArray(values) => values.foldLeft(JsonArray.create())((a, b) => a.add(convertJsonValue(b)))
     case JsObject(values) => values.toSeq.foldLeft(JsonObject.create())((a, b) => a.put(b._1, convertJsonValue(b._2)))
+    case _ => throw new RuntimeException("Unknown type")
   }
 
   def convertToJson(value: JsObject): JsonObject = value.value.toSeq.foldLeft(JsonObject.create())((a, b) => a.put(b._1, convertJsonValue(b._2)))
