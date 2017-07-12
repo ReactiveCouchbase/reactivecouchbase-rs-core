@@ -21,7 +21,7 @@ import org.reactivecouchbase.rs.scaladsl.json.{JsonError, JsonFormat, JsonReads,
 import org.reactivestreams.Publisher
 import rx.{Observable, RxReactiveStreams}
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -45,8 +45,9 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   private val defaultWriteSettings: WriteSettings = WriteSettings()
 
-  private val envBuilder = DefaultCouchbaseEnvironment.builder()
-  private val _cluster: CouchbaseCluster = CouchbaseCluster.create(envBuilder.build(), config.hosts:_*)
+  private val env = config.env(DefaultCouchbaseEnvironment.builder()).build()
+
+  private val _cluster: CouchbaseCluster = CouchbaseCluster.create(env, config.hosts:_*)
 
   private val (_bucket, _asyncBucket, _bucketManager, _futureBucket) = {
     val _bucket = config.password
@@ -55,6 +56,8 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     val _bucketManager = _bucket.bucketManager()
     (_bucket, _bucket.async(), _bucketManager, Future.successful(_bucket.async()))
   }
+
+  private val durationToExpiry = (expiration:Duration) => ((if (expiration < 30.days) 0L else System.currentTimeMillis / 1000L) + expiration.toSeconds).toInt
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,7 +279,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     onStop()
     _futureBucket.flatMap(_.close().asFuture.map(_.booleanValue())).andThen {
       case _ => _cluster.disconnect()
-    }
+    } flatMap( _ => env.shutdownAsync().asFuture.map(_.booleanValue()))
   }
 
   def cluster(implicit ec: ExecutionContext): Future[ClusterFacade] = {
@@ -332,7 +335,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       bucket.insert(
         RawJsonDocument.create(
           key,
-          settings.expiration.toMillis.toInt,
+          durationToExpiry(settings.expiration),
           format.writes(slug).utf8String
         ),
         settings.persistTo,
@@ -348,7 +351,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       bucket.upsert(
         RawJsonDocument.create(
           key,
-          settings.expiration.toMillis.toInt,
+          durationToExpiry (settings.expiration ),
           format.writes(slug).utf8String
         ),
         settings.persistTo,
@@ -364,6 +367,15 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
         case ObservableCompletedWithoutValue => Future.successful(None)
       }
+  }
+
+  def getAndTouch[T](key: String, expiration:Duration)(implicit ec: ExecutionContext, reader: JsonReads[T]): Future[Option[T]] = {
+    _futureBucket.flatMap(b => b.getAndTouch(key, durationToExpiry(expiration), classOf[RawJsonDocument]).asFuture)
+      .filter(_ != null)
+      .map(doc => ByteString(doc.content()))
+      .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
+      case ObservableCompletedWithoutValue => Future.successful(None)
+    }
   }
 
   def searchSpatial[T](query: SpatialQuery)(implicit ec: ExecutionContext, mat: Materializer, reader: JsonReads[T]): QueryResult[SpatialViewRow[T], NotUsed] = {
