@@ -1,6 +1,4 @@
-# ReactiveCouchbase RS (ReactiveStreams edition)
-
-[![Build Status](https://travis-ci.org/ReactiveCouchbase/reactivecouchbase-rs-core.svg?branch=master)](https://travis-ci.org/ReactiveCouchbase/reactivecouchbase-rs-core)
+# ReactiveCouchbase RS (ReactiveStreams edition) [![Build Status](https://travis-ci.org/ReactiveCouchbase/reactivecouchbase-rs-core.svg?branch=master)](https://travis-ci.org/ReactiveCouchbase/reactivecouchbase-rs-core)
 
 Yes, it's happening !!! with **ReactiveStreams** support ;-)
 
