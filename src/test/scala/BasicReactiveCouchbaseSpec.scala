@@ -11,7 +11,7 @@ import org.scalatest._
 import play.api.libs.json._
 
 import scala.concurrent.Promise
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
@@ -126,6 +126,36 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     }.map(v => {
       (s"doc-$v", Json.obj("type" -> "timedoc", "message" -> s"message nb $v", "date" -> System.nanoTime()))
     }).via(bucket.insertFlow[JsValue]()).runWith(Sink.seq).await.debug("Res")
+
+
+    bucket.insert[JsValue]("data.structures.list", Json.arr()).await
+    bucket.insert[JsValue]("data.structures.queue", Json.arr()).await
+    bucket.insert[JsValue]("data.structures.set", Json.arr()).await
+    bucket.insert[JsValue]("data.structures.map", Json.obj()).await
+
+    bucket.lists.append("data.structures.list", "hello").await
+    bucket.lists.append("data.structures.list", "bye").await
+    bucket.lists.get("data.structures.list", 0).await shouldEqual "hello"
+    bucket.lists.prepend("data.structures.list", "yo").await
+    bucket.lists.get("data.structures.list", 0).await shouldEqual "yo"
+    bucket.lists.size("data.structures.list").await shouldEqual 3
+
+    bucket.lists.append("data.structures.set", "hello").await
+    bucket.lists.append("data.structures.set", "hello").await
+    bucket.lists.append("data.structures.set", "hello").await
+    bucket.lists.append("data.structures.set", "bye").await
+    bucket.lists.get("data.structures.set", 0).await shouldEqual "hello"
+    bucket.lists.prepend("data.structures.set", "yo").await
+    bucket.lists.get("data.structures.set", 0).await shouldEqual "yo"
+    bucket.lists.size("data.structures.set").await shouldEqual 3
+
+    bucket.queues.push("data.structures.queue", "1").await
+    bucket.queues.push("data.structures.queue", "2").await
+    bucket.queues.push("data.structures.queue", "3").await
+    bucket.queues.size("data.structures.queue").await shouldEqual 3
+    bucket.queues.pop("data.structures.queue").await shouldEqual "1"
+    bucket.queues.pop("data.structures.queue").await shouldEqual "2"
+    bucket.queues.pop("data.structures.queue").await shouldEqual "3"
 
     // val usersUnder43: Future[Seq[JsValue]] = bucket.searchView(
     //   ViewQuery("persons", "by_age", _.stale(Stale.FALSE).includeDocs(true).startKey(0).endKey(42))
