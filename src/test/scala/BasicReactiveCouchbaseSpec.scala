@@ -37,6 +37,10 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     bucket.withManager(_.createN1qlPrimaryIndex(true, false)).await
 
+    bucket.remove("data.structures.list").recover { case _ => Json.obj() }.await
+    bucket.remove("data.structures.set").recover { case _ => Json.obj() }.await
+    bucket.remove("data.structures.queue").recover { case _ => Json.obj() }.await
+    bucket.remove("data.structures.map").recover { case _ => Json.obj() }.await
     bucket.remove("doc-1").recover { case _ => Json.obj() }.await
     bucket.remove("doc-2").recover { case _ => Json.obj() }.await
     bucket.remove("doc-3").recover { case _ => Json.obj() }.await
@@ -133,33 +137,38 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     bucket.insert[JsValue]("data.structures.set", Json.arr()).await
     bucket.insert[JsValue]("data.structures.map", Json.obj()).await
 
-    bucket.lists.append("data.structures.list", "hello").await
-    bucket.lists.append("data.structures.list", "bye").await
-    bucket.lists.get("data.structures.list", 0).await shouldEqual "hello"
-    bucket.lists.prepend("data.structures.list", "yo").await
-    bucket.lists.get("data.structures.list", 0).await shouldEqual "yo"
+    bucket.lists.append("data.structures.list", "hello").await shouldEqual true
+    bucket.lists.append("data.structures.list", "bye").await shouldEqual true
+    bucket.lists.get("data.structures.list", 0).await shouldEqual Some("hello")
+    bucket.lists.prepend("data.structures.list", "yo").await shouldEqual true
+    bucket.lists.get("data.structures.list", 0).await shouldEqual Some("yo")
     bucket.lists.size("data.structures.list").await shouldEqual 3
 
-    bucket.lists.append("data.structures.set", "hello").await
-    bucket.lists.append("data.structures.set", "hello").await
-    bucket.lists.append("data.structures.set", "hello").await
-    bucket.lists.append("data.structures.set", "bye").await
-    bucket.lists.get("data.structures.set", 0).await shouldEqual "hello"
-    bucket.lists.prepend("data.structures.set", "yo").await
-    bucket.lists.get("data.structures.set", 0).await shouldEqual "yo"
-    bucket.lists.size("data.structures.set").await shouldEqual 3
+    bucket.lists.get("data.structures.list", 10).await shouldEqual None
 
-    bucket.queues.push("data.structures.queue", "1").await
-    bucket.queues.push("data.structures.queue", "2").await
-    bucket.queues.push("data.structures.queue", "3").await
+    bucket.sets.add("data.structures.set", "hello").await shouldEqual true
+    bucket.sets.add("data.structures.set", "bye").await shouldEqual true
+    bucket.sets.contains("data.structures.set", "hello").await shouldEqual true
+    bucket.sets.contains("data.structures.set", "bye").await shouldEqual true
+    bucket.sets.size("data.structures.set").await shouldEqual 2
+    bucket.sets.remove("data.structures.set", "qsddsdqs").await shouldEqual Some("qsddsdqs")
+
+    bucket.queues.push("data.structures.queue", "1").await shouldEqual true
+    bucket.queues.push("data.structures.queue", "2").await shouldEqual true
+    bucket.queues.push("data.structures.queue", "3").await shouldEqual true
     bucket.queues.size("data.structures.queue").await shouldEqual 3
-    bucket.queues.pop("data.structures.queue").await shouldEqual "1"
-    bucket.queues.pop("data.structures.queue").await shouldEqual "2"
-    bucket.queues.pop("data.structures.queue").await shouldEqual "3"
+    bucket.queues.pop("data.structures.queue").await shouldEqual Some("1")
+    bucket.queues.pop("data.structures.queue").await shouldEqual Some("2")
+    bucket.queues.pop("data.structures.queue").await shouldEqual Some("3")
+    bucket.queues.pop("data.structures.queue").await shouldEqual None
 
-    // val usersUnder43: Future[Seq[JsValue]] = bucket.searchView(
-    //   ViewQuery("persons", "by_age", _.stale(Stale.FALSE).includeDocs(true).startKey(0).endKey(42))
-    // ).flatMap(d => Source.fromFuture(d.doc)).asSeq
+    bucket.maps.put("data.structures.map", "key1", "value1").await shouldEqual true
+    bucket.maps.put("data.structures.map", "key2", "value2").await shouldEqual true
+    bucket.maps.put("data.structures.map", "key2", "value11").await shouldEqual true
+
+    bucket.maps.get[String]("data.structures.map", "key1").await shouldEqual Some("value1")
+    bucket.maps.get[String]("data.structures.map", "key2").await shouldEqual Some("value11")
+    bucket.maps.get[String]("data.structures.map", "key3").await shouldEqual None
 
     bucket.close().await
   }

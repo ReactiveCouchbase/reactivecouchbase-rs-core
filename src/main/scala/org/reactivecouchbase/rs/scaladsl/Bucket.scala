@@ -12,9 +12,12 @@ import com.couchbase.client.core.ClusterFacade
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.AsyncBucketManager
 import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.document.{JsonLongDocument, RawJsonDocument}
+import com.couchbase.client.java.document.{JsonDocument, JsonLongDocument, RawJsonDocument}
 import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvironment}
 import com.couchbase.client.java.repository.AsyncRepository
+import com.couchbase.client.java.error.subdoc.PathNotFoundException
+import com.couchbase.client.java.subdoc._
+import com.couchbase.client.core.message.kv.subdoc.multi._
 import com.typesafe.config.Config
 import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
 import org.reactivecouchbase.rs.scaladsl.json.{JsonError, JsonFormat, JsonReads, JsonSuccess, JsonWrites}
@@ -249,9 +252,11 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
         bucket.mapAdd(key, entry, slug).asFuture.map(_.booleanValue)
       }
     }
-    def get[T](key: String, entry: String)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[T] = {
+    def get[T](key: String, entry: String)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[Option[T]] = {
       _futureBucket.flatMap { bucket =>
-        bucket.mapGet(key, entry, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture
+        bucket.mapGet(key, entry, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture.map(Option.apply).recover {
+          case e: PathNotFoundException => None
+        }
       }
     }
     def remove[T](key: String, entry: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -272,9 +277,9 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
         bucket.queuePush(key, slug).asFuture.map(_.booleanValue)
       }
     }
-    def pop[T](key: String)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[T] = {
+    def pop[T](key: String)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[Option[T]] = {
       _futureBucket.flatMap { bucket =>
-        bucket.queuePop(key, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture
+        bucket.queuePop(key, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture.map(Option.apply)
       }
     }
     def size(key: String)(implicit ec: ExecutionContext): Future[Int] = {
@@ -300,9 +305,11 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
         bucket.listPrepend(key, slug).asFuture.map(_.booleanValue)
       }
     }
-    def get[T](key: String, index: Int)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[T] = {
+    def get[T](key: String, index: Int)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[Option[T]] = {
       _futureBucket.flatMap { bucket =>
-        bucket.listGet(key, index, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture
+        bucket.listGet(key, index, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture.map(Option.apply).recover {
+          case e: PathNotFoundException => None
+        }
       }
     }
     def remove[T](key: String, index: Int)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -323,9 +330,11 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
         bucket.setAdd(key, slug).asFuture.map(_.booleanValue)
       }
     }
-    def remove[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[T] = {
+    def remove[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[Option[T]] = {
       _futureBucket.flatMap { bucket =>
-        bucket.setRemove(key, slug).asFuture
+        bucket.setRemove(key, slug).asFuture.map(Option.apply).recover {
+          case e: PathNotFoundException => None
+        }
       }
     }
     def size(key: String)(implicit ec: ExecutionContext): Future[Int] = {
@@ -338,6 +347,34 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
         bucket.setContains(key, slug).asFuture.map(_.booleanValue)
       }
     }
+  }
+
+  def unlock(key: String, cas: Long)(implicit ec: ExecutionContext): Future[Boolean] = {
+    _futureBucket.flatMap { bucket =>
+      bucket.unlock(key, cas).asFuture.map(_.booleanValue)
+    }
+  }
+  def touch(key: String, expiry: Duration)(implicit ec: ExecutionContext): Future[Boolean] = {
+    _futureBucket.flatMap { bucket =>
+      bucket.touch(key, expiry.asCouchbaseExpiry).asFuture.map(_.booleanValue)
+    }
+  }
+  def getAndLock[T](key: String, lockTime: Duration)(implicit ec: ExecutionContext, format: JsonFormat[T], classTag: ClassTag[T]): Future[Option[T]] = {
+    _futureBucket.flatMap { bucket =>
+      bucket.getAndLock(key, lockTime.toSeconds.toInt, classOf[RawJsonDocument]).asFuture
+        .filter(_ != null)
+        .map(doc => ByteString(doc.content()))
+        .map(jsDoc => format.reads(jsDoc).asOpt).recoverWith {
+          case ObservableCompletedWithoutValue => Future.successful(None)
+        }
+    }
+  }
+
+  // still crappy, will add proper support later
+  def mutateIn(key: String)(f: AsyncMutateInBuilder => rx.Observable[DocumentFragment[Mutation]])(implicit ec: ExecutionContext): Future[DocumentFragment[Mutation]] = {
+    _futureBucket.flatMap { bucket =>
+        f(bucket.mutateIn(key)).asFuture
+      }
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,6 +400,12 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def invalidateQueryCache()(implicit ec: ExecutionContext): Future[Int] = {
+    _futureBucket.flatMap { bucket =>
+      bucket.invalidateQueryCache().asFuture.map(_.toInt)
+    }
+  }
 
   def close()(implicit ec: ExecutionContext): Future[Boolean] = {
     onStop()
