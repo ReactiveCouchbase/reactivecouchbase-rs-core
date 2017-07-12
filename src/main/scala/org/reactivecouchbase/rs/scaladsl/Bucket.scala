@@ -24,6 +24,7 @@ import rx.{Observable, RxReactiveStreams}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
+import scala.reflect._
 
 case class BucketConfig(name: String, password: Option[String] = None, hosts: Seq[String], env: EnvCustomizer)
 
@@ -242,11 +243,102 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // TODO : maps   operations
-  // TODO : sets   operations
-  // TODO : lists  operations
-  // TODO : queues operations
-  // TODO : lock   operations
+  object maps {
+    def put[T](key: String, entry: String, slug: T)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.mapAdd(key, entry, slug).asFuture.map(_.booleanValue)
+      }
+    }
+    def get[T](key: String, entry: String)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[T] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.mapGet(key, entry, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture
+      }
+    }
+    def remove[T](key: String, entry: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.mapRemove(key, entry).asFuture.map(_.booleanValue)
+      }
+    }
+    def size(key: String)(implicit ec: ExecutionContext): Future[Int] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.mapSize(key).asFuture.map(_.toInt)
+      }
+    }
+  }
+
+  object queues {
+    def push[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.queuePush(key, slug).asFuture.map(_.booleanValue)
+      }
+    }
+    def pop[T](key: String)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[T] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.queuePop(key, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture
+      }
+    }
+    def size(key: String)(implicit ec: ExecutionContext): Future[Int] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.queueSize(key).asFuture.map(_.toInt)
+      }
+    }
+  }
+
+  object lists {
+    def set[T](key: String, index: Int, slug: T)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.listSet(key, index, slug).asFuture.map(_.booleanValue)
+      }
+    }
+    def append[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.listAppend(key, slug).asFuture.map(_.booleanValue)
+      }
+    }
+    def prepend[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.listPrepend(key, slug).asFuture.map(_.booleanValue)
+      }
+    }
+    def get[T](key: String, index: Int)(implicit ec: ExecutionContext, classTag: ClassTag[T]): Future[T] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.listGet(key, index, classTag.runtimeClass.asInstanceOf[Class[T]]).asFuture
+      }
+    }
+    def remove[T](key: String, index: Int)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.listRemove(key, index).asFuture.map(_.booleanValue)
+      }
+    }
+    def size(key: String)(implicit ec: ExecutionContext): Future[Int] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.listSize(key).asFuture.map(_.toInt)
+      }
+    }
+  }
+
+  object sets {
+    def add[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.setAdd(key, slug).asFuture.map(_.booleanValue)
+      }
+    }
+    def remove[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[T] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.setRemove(key, slug).asFuture
+      }
+    }
+    def size(key: String)(implicit ec: ExecutionContext): Future[Int] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.setSize(key).asFuture.map(_.toInt)
+      }
+    }
+    def contains[T](key: String, slug: T)(implicit ec: ExecutionContext): Future[Boolean] = {
+      _futureBucket.flatMap { bucket =>
+        bucket.setContains(key, slug).asFuture.map(_.booleanValue)
+      }
+    }
+  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,6 +406,22 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def replace[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: JsonFormat[T]): Future[T] = {
+    _futureBucket.flatMap { bucket =>
+      bucket.replace(
+        RawJsonDocument.create(
+          key,
+          settings.expiration.asCouchbaseExpiry,
+          format.writes(slug).utf8String
+        ),
+        settings.persistTo,
+        settings.replicateTo
+      ).asFuture.map(doc => {
+        format.reads(ByteString(doc.content())).get
+      })
+    }
+  }
 
   def exists(key: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     _futureBucket.flatMap { bucket =>
