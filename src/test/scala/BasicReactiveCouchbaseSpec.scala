@@ -10,7 +10,7 @@ import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest._
 import play.api.libs.json._
 
-import scala.concurrent.Promise
+import scala.concurrent._
 import scala.concurrent.duration._
 
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
