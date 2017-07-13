@@ -12,6 +12,8 @@ package object scaladsl {
   type ExecCtx[_] = ExecutionContext
   type Mat[_] = Materializer
 
+  val InfiniteExpiry: Duration = Duration.Inf
+
   case object ObservableCompletedWithoutValue extends RuntimeException("Observable should have produced at least a value ...") with NoStackTrace
 
   implicit class EnhancedObservable[T](val obs: Observable[T]) extends AnyVal {
@@ -32,8 +34,13 @@ package object scaladsl {
 
   implicit class EnhancedDuration(val duration: Duration) extends AnyVal {
     def asCouchbaseExpiry: Int = {
-      val start = if (duration < 30.days) 0L else System.currentTimeMillis / 1000L
-      (start + duration.toSeconds).toInt
+      duration match {
+        case Duration.Zero => 0
+        case Duration.Inf => 0
+        case _ => 
+          val start = if (duration < 30.days) 0L else System.currentTimeMillis / 1000L
+          (start + duration.toSeconds).toInt
+      }
     }
   }
 }

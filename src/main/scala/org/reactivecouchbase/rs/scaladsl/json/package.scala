@@ -1,7 +1,7 @@
 package org.reactivecouchbase.rs.scaladsl
 
 import akka.util.ByteString
-import com.couchbase.client.java.document.json.JsonObject
+import com.couchbase.client.java.document.json._
 import play.api.libs.json._
 
 package object json {
@@ -21,7 +21,19 @@ package object json {
     override def toJsonObject: JsonObject = JsonConverter.convertToJson(query)
   }
 
-  implicit class EnhancedJsonObject(val obj: JsObject) extends AnyVal {
+  implicit class EnhancedJsObject(val obj: JsObject) extends AnyVal {
     def asQueryParams: PlayJsonQueryParams = PlayJsonQueryParams(obj)
+  }
+
+  implicit class EnhancedJsValue(val value: JsValue) extends AnyVal {
+    def asCbValue: Any = defaultPlayJsonConverter.convertFrom(value)
+  }
+
+  implicit class EnhancedJsonArray(val value: JsonArray) extends AnyVal {
+    def asJsValue: Any = defaultPlayJsonConverter.convertTo(value)
+  }
+
+  implicit class EnhancedJsonObject(val value: JsonObject) extends AnyVal {
+    def asJsValue: Any = defaultPlayJsonConverter.convertTo(value)
   }
 }
