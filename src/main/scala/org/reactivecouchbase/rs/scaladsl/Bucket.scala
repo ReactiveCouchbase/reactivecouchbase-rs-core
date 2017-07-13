@@ -450,14 +450,23 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def replace[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: JsonFormat[T]): Future[T] = {
+  def replace[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, cas: Option[Long] = None)(implicit ec: ExecutionContext, format: JsonFormat[T]): Future[T] = {
     _futureBucket.flatMap { bucket =>
-      bucket.replace(
-        RawJsonDocument.create(
+      val doc = cas match {
+        case None => RawJsonDocument.create(
           key,
           settings.expiration.asCouchbaseExpiry,
           format.writes(slug).utf8String
-        ),
+        )
+        case Some(casValue) => RawJsonDocument.create(
+          key,
+          settings.expiration.asCouchbaseExpiry,
+          format.writes(slug).utf8String,
+          casValue
+        )
+      }
+      bucket.replace(
+        doc,
         settings.persistTo,
         settings.replicateTo
       ).asFuture.map(doc => {
@@ -478,14 +487,23 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     }
   }
 
-  def insert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: JsonFormat[T]): Future[T] = {
+  def insert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, cas: Option[Long] = None)(implicit ec: ExecutionContext, format: JsonFormat[T]): Future[T] = {
     _futureBucket.flatMap { bucket =>
-      bucket.insert(
-        RawJsonDocument.create(
+      val doc = cas match {
+        case None => RawJsonDocument.create(
           key,
           settings.expiration.asCouchbaseExpiry,
           format.writes(slug).utf8String
-        ),
+        )
+        case Some(casValue) => RawJsonDocument.create(
+          key,
+          settings.expiration.asCouchbaseExpiry,
+          format.writes(slug).utf8String,
+          casValue
+        )
+      }
+      bucket.insert(
+        doc,
         settings.persistTo,
         settings.replicateTo
       ).asFuture.map(doc => {
@@ -494,14 +512,23 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
     }
   }
 
-  def upsert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings)(implicit ec: ExecutionContext, format: JsonFormat[T]): Future[T] = {
+  def upsert[T](key: String, slug: T, settings: WriteSettings = defaultWriteSettings, cas: Option[Long] = None)(implicit ec: ExecutionContext, format: JsonFormat[T]): Future[T] = {
     _futureBucket.flatMap { bucket =>
-      bucket.upsert(
-        RawJsonDocument.create(
+      val doc = cas match {
+        case None => RawJsonDocument.create(
           key,
           settings.expiration.asCouchbaseExpiry,
           format.writes(slug).utf8String
-        ),
+        )
+        case Some(casValue) => RawJsonDocument.create(
+          key,
+          settings.expiration.asCouchbaseExpiry,
+          format.writes(slug).utf8String,
+          casValue
+        )
+      }
+      bucket.upsert(
+        doc,
         settings.persistTo,
         settings.replicateTo
       ).asFuture.map(doc => format.reads(ByteString(doc.content())).get)
@@ -517,13 +544,24 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       }
   }
 
+  def getWithCAS[T](key: String)(implicit ec: ExecutionContext, reader: JsonReads[T]): Future[Option[(T, Long)]] = {
+    _futureBucket.flatMap(b => b.get(RawJsonDocument.create(key)).asFuture)
+      .filter(_ != null)
+      .map(doc => (ByteString(doc.content()), doc.cas))
+      .map {
+        case (jsDoc, cas) => reader.reads(jsDoc).asOpt.map(v => (v, cas))
+      } recoverWith {
+        case ObservableCompletedWithoutValue => Future.successful(None)
+      }
+  }
+
   def getAndTouch[T](key: String, expiration:Duration)(implicit ec: ExecutionContext, reader: JsonReads[T]): Future[Option[T]] = {
     _futureBucket.flatMap(b => b.getAndTouch(key, expiration.asCouchbaseExpiry, classOf[RawJsonDocument]).asFuture)
       .filter(_ != null)
       .map(doc => ByteString(doc.content()))
       .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
-      case ObservableCompletedWithoutValue => Future.successful(None)
-    }
+        case ObservableCompletedWithoutValue => Future.successful(None)
+      }
   }
 
   def searchSpatial[T](query: SpatialQuery)(implicit ec: ExecutionContext, mat: Materializer, reader: JsonReads[T]): QueryResult[SpatialViewRow[T], NotUsed] = {
