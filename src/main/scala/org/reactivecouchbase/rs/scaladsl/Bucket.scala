@@ -9,7 +9,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import com.couchbase.client.core.ClusterFacade
-import com.couchbase.client.java.CouchbaseCluster
+import com.couchbase.client.java.{CouchbaseCluster, ReplicaMode}
 import com.couchbase.client.java.bucket.AsyncBucketManager
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.document.{JsonDocument, JsonLongDocument, RawJsonDocument}
@@ -542,6 +542,15 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
         case ObservableCompletedWithoutValue => Future.successful(None)
       }
+  }
+
+  def getFromReplica[T](key: String, replicaMode: ReplicaMode)(implicit ec: ExecutionContext, reader: JsonReads[T]): Future[Option[T]] = {
+    _futureBucket.flatMap(b => b.getFromReplica(RawJsonDocument.create(key), replicaMode).asFuture)
+      .filter(_ != null)
+      .map(doc => ByteString(doc.content()))
+      .map(jsDoc => reader.reads(jsDoc).asOpt).recoverWith {
+      case ObservableCompletedWithoutValue => Future.successful(None)
+    }
   }
 
   def getWithCAS[T](key: String)(implicit ec: ExecutionContext, reader: JsonReads[T]): Future[Option[(T, Long)]] = {
