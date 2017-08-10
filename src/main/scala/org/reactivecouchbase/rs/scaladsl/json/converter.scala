@@ -11,7 +11,7 @@ private[json] object JsonConverter {
     case JsNull => JsonNull.INSTANCE
     case JsString(s) => s
     case JsBoolean(b) => b
-    case JsNumber(n) => n
+    case JsNumber(n) => n.bigDecimal
     case JsArray(values) => values.foldLeft(JsonArray.create())((a, b) => a.add(convertJsonValue(b)))
     case JsObject(values) => values.toSeq.foldLeft(JsonObject.create())((a, b) => a.put(b._1, convertJsonValue(b._2)))
     case _ => throw new RuntimeException("Unknown type")
