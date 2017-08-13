@@ -30,6 +30,16 @@ package object scaladsl {
       )
       p.future
     }
+
+    /**
+      * Applies a timeout given Some[Duration], otherwise does nothing
+      *
+      * @param timeout: Optional [[scala.concurrent.duration.Duration]]
+      *
+      * @return obs Observable[T]
+      * */
+    def maybeTimeout(timeout: Option[Duration]): Observable[T] =
+      timeout.map(to => obs.timeout(to.length, to.unit)).getOrElse(obs)
   }
 
   implicit class EnhancedDuration(val duration: Duration) extends AnyVal {
