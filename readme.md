@@ -81,6 +81,65 @@ object ReactiveCouchbaseTest extends App {
 }
 ```
 
+## Example using custom environment and timeout
+```scala
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
+import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase}
+import org.reactivecouchbase.rs.scaladsl.json._
+import play.api.libs.json._
+import akka.stream.scaladsl.Sink
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
+import scala.concurrent.duration._
+
+object ReactiveCouchbaseTest extends App {
+
+  val system = ActorSystem("ReactiveCouchbaseSystem")
+
+  implicit val materializer = ActorMaterializer.create(system)
+  implicit val ec = system.dispatcher
+
+  val driver = ReactiveCouchbase(ConfigFactory.parseString(
+    """
+      |buckets {
+      |  default {
+      |    name = "default"
+      |    hosts = ["127.0.0.1"]
+      |  }
+      |}
+    """.stripMargin))
+  
+  // Sets a custom environment builder for the Couchbase bucket so that mutation tokens are enabled
+  def customEnv: DefaultCouchbaseEnvironment.Builder => DefaultCouchbaseEnvironment.Builder = env => env.mutationTokensEnabled(true) 
+  
+  // Uses the custom environment, sets a default timeout of 10 seconds for all operations
+  val bucket = driver.bucket("default", customEnv, Some(10.seconds))
+
+  val future = for {
+    _        <- bucket.insert[JsValue]("key1", Json.obj("message" -> "Hello World", "type" -> "doc"))
+    doc      <- bucket.get("key1")
+    exists   <- bucket.exists("key1")
+    docs     <- bucket.search(N1qlQuery("select message from default where type = $type")
+                  .on(Json.obj("type" -> "doc").asQueryParams), Some(5.seconds)) // Overrides the default timeout with its own timeout of 5 seconds
+                  .asSeq
+    messages <- bucket.search(N1qlQuery("select message from default where type = 'doc'"))
+                  .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
+                  .runWith(Sink.seq[String])
+    _        <- driver.terminate()
+  } yield (doc, exists, docs)
+
+  future.map {
+    case (_, _, docs) => println(s"found $docs")
+  }
+
+}
+```
+
+
 ## What about the Play Framework plugin ?
 
 I don't think you actually need a plugin, if you want to use it from Play Framework, you can define a service to access your buckets like the following :
