@@ -13,6 +13,8 @@ import play.api.libs.json._
 import scala.concurrent._
 import scala.concurrent.duration._
 
+sealed case class TestModel(message: String, `type`: Option[String])
+
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
   import TestImplicits._
@@ -54,11 +56,15 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     bucket.insert[JsValue]("key1", Json.obj("message" -> "Hello World", "type" -> "doc")).await.debug("Insert1", a => Json.prettyPrint(a))
     bucket.insert[JsValue]("key2", Json.obj("message" -> "Goodbye World", "type" -> "doc")).await.debug("Insert2", a => Json.prettyPrint(a))
 
-    val maybeDoc1 = bucket.get("key1").await.debug("maybeDoc1")
-    val maybeDoc2 = bucket.get("key2").await.debug("maybeDoc2")
-    val maybeDoc3 = bucket.get("key3").await.debug("maybeDoc3")
+    implicit val format: JsonFormat[TestModel] = Json.format[TestModel]
+
+    val maybeDoc1 = bucket.get[JsValue]("key1").await.debug("maybeDoc1")
+    val maybeDoc1AsClass = bucket.get[TestModel]("key1").await.debug("maybeDoc1AsClass")
+    val maybeDoc2 = bucket.get[JsValue]("key2").await.debug("maybeDoc2")
+    val maybeDoc3 = bucket.get[JsValue]("key3").await.debug("maybeDoc3")
 
     maybeDoc1 should be (Some(Json.obj("message" -> "Hello World", "type" -> "doc")))
+    maybeDoc1AsClass should be (Some(TestModel("Hello World", Some("doc"))))
     maybeDoc2 should be (Some(Json.obj("message" -> "Goodbye World", "type" -> "doc")))
     maybeDoc3 should be (None)
 
@@ -68,15 +74,17 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     doc1Exists should be (true)
     doc2Exists should be (true)
 
-    val results1 = bucket.search(N1qlQuery("select message from default")).asSeq.await.debug("results1")
-    val results2 = bucket.search(N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
-    val results3 = bucket.search(N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
-    val results4 = bucket.search(N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc").asQueryParams)).asSeq.await.debug("results4")
-    val results5 = bucket.search(N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc").asQueryParams))
+    val results1 = bucket.search[JsValue](N1qlQuery("select message from default")).asSeq.await.debug("results1")
+    val results1AsClass = bucket.search[TestModel](N1qlQuery("select message from default")).asSeq.await.debug("results1")
+    val results2 = bucket.search[JsValue](N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
+    val results3 = bucket.search[JsValue](N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
+    val results4 = bucket.search[JsValue](N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc").asQueryParams)).asSeq.await.debug("results4")
+    val results5 = bucket.search[JsValue](N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc").asQueryParams))
       .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
       .runWith(Sink.seq[String]).await.debug("results5")
 
     results1 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
+    results1AsClass should be (Seq(TestModel("Hello World", None), TestModel("Goodbye World", None)))
     results2 should be (Seq(Json.obj("message" -> "Hello World")))
     results3 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
     results4 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
