@@ -1,6 +1,6 @@
 name := """reactivecouchbase-rs-core"""
 organization := "org.reactivecouchbase"
-version := "1.0.2-SNAPSHOT"
+version := "1.1.0"
 scalaVersion := "2.12.2"
 crossScalaVersions := Seq(scalaVersion.value, "2.11.11")
 

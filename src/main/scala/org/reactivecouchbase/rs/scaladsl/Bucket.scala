@@ -19,7 +19,7 @@ import com.couchbase.client.java.error.subdoc.PathNotFoundException
 import com.couchbase.client.java.subdoc._
 import com.couchbase.client.core.message.kv.subdoc.multi._
 import com.typesafe.config.Config
-import org.reactivecouchbase.rs.scaladsl.TypeUtils.EnvCustomizer
+import org.reactivecouchbase.rs.scaladsl.TypeUtils.{ClusterCustomizer, EnvCustomizer}
 import org.reactivecouchbase.rs.scaladsl.json.{JsonError, JsonFormat, JsonReads, JsonSuccess, JsonWrites}
 import org.reactivestreams.Publisher
 import rx.{Observable, RxReactiveStreams}
@@ -35,6 +35,7 @@ case class BucketConfig(name: String,
                         password: Option[String] = None, // For 4.x backwards compat
                         hosts: Seq[String],
                         env: EnvCustomizer,
+                        cluster: ClusterCustomizer,
                         defaultTimeout: Option[Duration],
                         clusterAuth: Option[ClusterAuth] = None //For 5.x RBAC requirements
                        )
@@ -42,7 +43,7 @@ case class BucketConfig(name: String,
 object BucketConfig {
   import collection.JavaConversions._
 
-  def apply(config: Config, env: EnvCustomizer, defaultTimeout: Option[Duration]): BucketConfig = {
+  def apply(config: Config, env: EnvCustomizer, cluster: ClusterCustomizer, defaultTimeout: Option[Duration]): BucketConfig = {
     val name = Try(config.getString("name")).get
     val password = Try(config.getString("password")).toOption
     val hosts = Try(config.getStringList("hosts")).get.toIndexedSeq
@@ -52,7 +53,7 @@ object BucketConfig {
       ClusterAuth(username, password)
     }.toOption
 
-    BucketConfig(name, password, hosts, env, defaultTimeout, auth)
+    BucketConfig(name, password, hosts, env, cluster, defaultTimeout, auth)
   }
 }
 
@@ -69,7 +70,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   private val _cluster: CouchbaseCluster = {
     val underlying = CouchbaseCluster.create(env, config.hosts: _*)
     config.clusterAuth.foreach(auth => underlying.authenticate(auth.username, auth.password))
-    underlying
+    config.cluster(underlying)
   }
 
   private val (_bucket, _asyncBucket, _bucketManager, _futureBucket) = {
