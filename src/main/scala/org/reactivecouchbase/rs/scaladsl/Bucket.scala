@@ -29,7 +29,15 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import scala.reflect._
 
-case class BucketConfig(name: String, password: Option[String] = None, hosts: Seq[String], env: EnvCustomizer, defaultTimeout: Option[Duration])
+case class ClusterAuth(username: String, password: String)
+
+case class BucketConfig(name: String,
+                        password: Option[String] = None, // For 4.x backwards compat
+                        hosts: Seq[String],
+                        env: EnvCustomizer,
+                        defaultTimeout: Option[Duration],
+                        clusterAuth: Option[ClusterAuth] = None //For 5.x RBAC requirements
+                       )
 
 object BucketConfig {
   import collection.JavaConversions._
@@ -38,7 +46,13 @@ object BucketConfig {
     val name = Try(config.getString("name")).get
     val password = Try(config.getString("password")).toOption
     val hosts = Try(config.getStringList("hosts")).get.toIndexedSeq
-    BucketConfig(name, password, hosts, env, defaultTimeout)
+    val auth = Try {
+      val username = config.getConfig("authentication").getString("username")
+      val password = config.getConfig("authentication").getString("password")
+      ClusterAuth(username, password)
+    }.toOption
+
+    BucketConfig(name, password, hosts, env, defaultTimeout, auth)
   }
 }
 
@@ -52,7 +66,11 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
 
   private val env = config.env(DefaultCouchbaseEnvironment.builder()).build()
 
-  private val _cluster: CouchbaseCluster = CouchbaseCluster.create(env, config.hosts:_*)
+  private val _cluster: CouchbaseCluster = {
+    val underlying = CouchbaseCluster.create(env, config.hosts: _*)
+    config.clusterAuth.foreach(auth => underlying.authenticate(auth.username, auth.password))
+    underlying
+  }
 
   private val (_bucket, _asyncBucket, _bucketManager, _futureBucket) = {
     val _bucket = config.password

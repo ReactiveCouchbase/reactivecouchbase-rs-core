@@ -12,6 +12,7 @@ import play.api.libs.json._
 
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.util.Try
 
 sealed case class TestModel(message: String, `type`: Option[String])
 
@@ -25,15 +26,34 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
   "ReactiveCouchbase ReactiveStreams Edition" should "work" in {
 
-    val driver = ReactiveCouchbase(ConfigFactory.parseString(
-      """
-        |buckets {
-        |  default {
-        |    name = "default"
-        |    hosts = ["127.0.0.1"]
-        |  }
-        |}
-      """.stripMargin))
+    val useRBAC: Boolean = Try(sys.env("USE_RBAC").toBoolean).getOrElse(false)
+    val configString: String = {
+      if (useRBAC) {
+        """
+          |buckets {
+          |  default {
+          |    name = "default"
+          |    hosts = ["127.0.0.1"]
+          |    authentication = {
+          |      username = "Administrator"
+          |      password = "Administrator"
+          |    }
+          |  }
+          |}
+        """.stripMargin
+      } else {
+        """
+          |buckets {
+          |  default {
+          |    name = "default"
+          |    hosts = ["127.0.0.1"]
+          |  }
+          |}
+        """.stripMargin
+      }
+    }
+
+    val driver = ReactiveCouchbase(ConfigFactory.parseString(configString))
 
     val bucket = driver.bucket("default")
 
@@ -79,7 +99,7 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     val results2 = bucket.search[JsValue](N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
     val results3 = bucket.search[JsValue](N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
     val results4 = bucket.search[JsValue](N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc").asQueryParams)).asSeq.await.debug("results4")
-    val results5 = bucket.search[JsValue](N1qlQuery("select message from default where type = $type'").on(Json.obj("type" -> "doc").asQueryParams))
+    val results5 = bucket.search[JsValue](N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc").asQueryParams))
       .asSource.map(doc => (doc \ "message").as[String].toUpperCase)
       .runWith(Sink.seq[String]).await.debug("results5")
 
