@@ -5,7 +5,7 @@ import play.api.libs.json._
 
 private[json] object JsonConverter {
 
-  import collection.JavaConversions._
+  import collection.JavaConverters._
 
   def convertJsonValue(value: JsValue): Any = value match {
     case JsNull => JsonNull.INSTANCE
@@ -20,8 +20,8 @@ private[json] object JsonConverter {
   def convertToJson(value: JsObject): JsonObject = value.value.toSeq.foldLeft(JsonObject.create())((a, b) => a.put(b._1, convertJsonValue(b._2)))
 
   def convertToJsValue(value: Any): JsValue = value match {
-    case a: JsonObject => JsObject(a.toMap.toMap.mapValues(convertToJsValue))
-    case a: JsonArray => JsArray(a.toList.toIndexedSeq.map(convertToJsValue))
+    case a: JsonObject => JsObject(a.toMap.asScala.toMap.mapValues(convertToJsValue))
+    case a: JsonArray => JsArray(a.toList.asScala.toIndexedSeq.map(convertToJsValue))
     case a: Boolean => JsBoolean(a)
     case a: Double => JsNumber(a)
     case a: Long => JsNumber(a)
