@@ -198,7 +198,7 @@ class ApiController @Inject()(couchbase: Couchbase)(implicit ec: ExecutionContex
 
 ## What if I want to use a JSON lib other than Play Json ?
 
-you can easily do that, actually everything linked to Play Json is imported from 
+you can easily do that, actually everything linked to Play Json is imported from:
 
 ```scala
 import org.reactivecouchbase.rs.scaladsl.json._
@@ -231,4 +231,24 @@ You have a few examples at
 
 * https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core/blob/master/src/main/scala/org/reactivecouchbase/rs/scaladsl/json/package.scala
 * https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core/blob/master/src/main/scala/org/reactivecouchbase/rs/scaladsl/json/bytestring.scala 
+* https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core/blob/master/src/main/scala/org/reactivecouchbase/rs/scaladsl/json/circejson.scala
 * https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core/blob/master/src/main/scala/org/reactivecouchbase/rs/scaladsl/json/converter.scala#L21-L31
+
+
+## How about Circe support?
+
+Reactive Couchbase also supports Circe for JSON serialization:
+
+```scala
+import io.circe.{ Encoder, Decoder }
+import io.circe.syntax._
+import io.circe.generic.semiauto._
+import org.reactivecouchbase.rs.scaladsl.json._
+import org.reactivecouchbase.rs.scaladsl.circejson._
+
+sealed case class TestModel(message: String, `type`: Option[String])
+
+implicit val encoder: Encoder[TestModel] = deriveEncoder
+implicit val decoder: Decoder[TestModel] = deriveDecoder
+implicit val format2: JsonFormat[TestModel] = createCBFormat
+```
