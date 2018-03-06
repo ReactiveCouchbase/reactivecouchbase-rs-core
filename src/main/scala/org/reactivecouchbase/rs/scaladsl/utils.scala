@@ -2,11 +2,13 @@ package org.reactivecouchbase.rs.scaladsl
 
 import java.util.function.Function
 
+import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
 import rx.functions.{Action0, Action1, Func1}
 
 object TypeUtils {
   type EnvCustomizer = DefaultCouchbaseEnvironment.Builder => DefaultCouchbaseEnvironment.Builder
+  type ClusterCustomizer = CouchbaseCluster => CouchbaseCluster
 }
 
 object RxUtils {

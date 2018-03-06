@@ -1,12 +1,12 @@
 name := """reactivecouchbase-rs-core"""
 organization := "org.reactivecouchbase"
-version := "1.0.1-SNAPSHOT"
+version := "1.1.1-SNAPSHOT"
 scalaVersion := "2.12.2"
 crossScalaVersions := Seq(scalaVersion.value, "2.11.11")
 
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.1",
-  "com.couchbase.client" % "java-client" % "2.4.6",
+  "com.couchbase.client" % "java-client" % "2.5.1",
   "com.typesafe.play" %% "play-json" % "2.6.0",
   "com.typesafe.akka" %% "akka-actor" % "2.5.3",
   "com.typesafe.akka" %% "akka-stream" % "2.5.3",
