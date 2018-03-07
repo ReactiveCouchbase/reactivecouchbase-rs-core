@@ -15,7 +15,7 @@ lazy val reactivecouchbase = (project in file("."))
   .settings(
     name := "reactivecouchbase-rs-core",
     organization := "org.reactivecouchbase",
-    version := "1.1.1-SNAPSHOT",
+    version := "1.2.0-SNAPSHOT",
     scalaVersion := "2.12.4",
     crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
     libraryDependencies ++= Seq(
