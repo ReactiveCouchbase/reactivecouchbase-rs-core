@@ -11,6 +11,7 @@ val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefin
 }
 
 lazy val reactivecouchbase = (project in file("."))
+  .enablePlugins(GitVersioning, GitBranchPrompt)
   .disablePlugins(disabledPlugins: _*)
   .settings(
     name := "reactivecouchbase-rs-core",
@@ -37,7 +38,18 @@ lazy val reactivecouchbase = (project in file("."))
       Resolver.jcenterRepo,
       Resolver.bintrayRepo("larousso", "maven")
     ),
-    scalafmtVersion in ThisBuild := "1.2.0"
+    scalafmtVersion in ThisBuild := "1.2.0",
+    releaseProcess := Seq[ReleaseStep](
+      checkSnapshotDependencies, // : ReleaseStep
+      inquireVersions, // : ReleaseStep
+      runClean,        // : ReleaseStep
+      setReleaseVersion, // : ReleaseStep
+      commitReleaseVersion, // : ReleaseStep, performs the initial git checks
+      tagRelease,           // : ReleaseStep
+      setNextVersion, // : ReleaseStep
+      commitNextVersion, // : ReleaseStep
+      pushChanges // : ReleaseStep, also checks that an upstream branch is properly configured
+    )
   )
   .settings(publishSettings: _*)
 
