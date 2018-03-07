@@ -5,7 +5,11 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import com.typesafe.config.ConfigFactory
+import io.circe.{ Encoder, Decoder }
+import io.circe.syntax._
+import io.circe.generic.semiauto._
 import org.reactivecouchbase.rs.scaladsl.json._
+import org.reactivecouchbase.rs.scaladsl.circejson._
 import org.reactivecouchbase.rs.scaladsl.{N1qlQuery, ReactiveCouchbase}
 import org.scalatest._
 import play.api.libs.json._
@@ -15,6 +19,7 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 sealed case class TestModel(message: String, `type`: Option[String])
+sealed case class TestModel2(message: String, `type`: Option[String])
 
 class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
@@ -77,14 +82,19 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     bucket.insert[JsValue]("key2", Json.obj("message" -> "Goodbye World", "type" -> "doc")).await.debug("Insert2", a => Json.prettyPrint(a))
 
     implicit val format: JsonFormat[TestModel] = Json.format[TestModel]
+    implicit val encoder: Encoder[TestModel2] = deriveEncoder
+    implicit val decoder: Decoder[TestModel2] = deriveDecoder
+    implicit val format2: JsonFormat[TestModel2] = createCBFormat
 
     val maybeDoc1 = bucket.get[JsValue]("key1").await.debug("maybeDoc1")
     val maybeDoc1AsClass = bucket.get[TestModel]("key1").await.debug("maybeDoc1AsClass")
+    val maybeDoc1AsClass2 = bucket.get[TestModel2]("key1").await.debug("maybeDoc1AsClass2")
     val maybeDoc2 = bucket.get[JsValue]("key2").await.debug("maybeDoc2")
     val maybeDoc3 = bucket.get[JsValue]("key3").await.debug("maybeDoc3")
 
     maybeDoc1 should be (Some(Json.obj("message" -> "Hello World", "type" -> "doc")))
     maybeDoc1AsClass should be (Some(TestModel("Hello World", Some("doc"))))
+    maybeDoc1AsClass2 should be (Some(TestModel2("Hello World", Some("doc"))))
     maybeDoc2 should be (Some(Json.obj("message" -> "Goodbye World", "type" -> "doc")))
     maybeDoc3 should be (None)
 
@@ -95,7 +105,8 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
     doc2Exists should be (true)
 
     val results1 = bucket.search[JsValue](N1qlQuery("select message from default")).asSeq.await.debug("results1")
-    val results1AsClass = bucket.search[TestModel](N1qlQuery("select message from default")).asSeq.await.debug("results1")
+    val results1AsClass = bucket.search[TestModel](N1qlQuery("select message from default")).asSeq.await.debug("resultsAsClass")
+    val results1AsClass2 = bucket.search[TestModel2](N1qlQuery("select message from default")).asSeq.await.debug("resultsAsClass2")
     val results2 = bucket.search[JsValue](N1qlQuery("select message from default where message = 'Hello World'")).asSeq.await.debug("results2")
     val results3 = bucket.search[JsValue](N1qlQuery("select message from default where type = 'doc'")).asSeq.await.debug("results3")
     val results4 = bucket.search[JsValue](N1qlQuery("select message from default where type = $type").on(Json.obj("type" -> "doc").asQueryParams)).asSeq.await.debug("results4")
@@ -105,6 +116,7 @@ class BasicReactiveCouchbaseSpec extends FlatSpec with Matchers {
 
     results1 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
     results1AsClass should be (Seq(TestModel("Hello World", None), TestModel("Goodbye World", None)))
+    results1AsClass2 should be (Seq(TestModel2("Hello World", None), TestModel2("Goodbye World", None)))
     results2 should be (Seq(Json.obj("message" -> "Hello World")))
     results3 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
     results4 should be (Seq(Json.obj("message" -> "Hello World"), Json.obj("message" -> "Goodbye World")))
