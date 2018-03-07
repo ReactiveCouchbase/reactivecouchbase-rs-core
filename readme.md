@@ -252,3 +252,11 @@ implicit val encoder: Encoder[TestModel] = deriveEncoder
 implicit val decoder: Decoder[TestModel] = deriveDecoder
 implicit val format2: JsonFormat[TestModel] = createCBFormat
 ```
+
+## Todo
+
+* travis build
+* test with couchbase docker image
+* use scala fmt
+* push on bintray and jcenter
+* separate play-json and circe in modules ?

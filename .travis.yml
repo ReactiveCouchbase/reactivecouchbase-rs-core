@@ -1,9 +1,13 @@
 language: scala
+
 git:
   depth: 1
+
 jdk:
    - oraclejdk8
+
 scala:
    - 2.12.2
+
 script:
    - sbt ';clean;+compile'

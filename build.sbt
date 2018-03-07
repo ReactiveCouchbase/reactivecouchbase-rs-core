@@ -20,6 +20,11 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.5" % "test"
 )
 
+sources in (Compile, doc) := Seq.empty
+publishArtifact in (Compile, packageDoc) := false
+
+scalafmtVersion in ThisBuild := "1.2.0"
+
 val localPublishRepo: String = "./repository"
 
 publishTo := {
