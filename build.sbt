@@ -1,10 +1,10 @@
 import sbt.Keys.{organization, scalacOptions}
 import sbtrelease.ReleaseStateTransformations._
 
-val githubRepo = "ReactiveCouchbase/reactivecouchbase-rs-core"
-val akkaVersion = "2.5.11"    
-val circeVersion = "0.9.1"    
-val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+lazy val githubRepo   = "ReactiveCouchbase/reactivecouchbase-rs-core"
+lazy val akkaVersion  = "2.5.11"
+lazy val circeVersion = "0.9.1"
+lazy val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
   Seq.empty
 } else {
   Seq(BintrayPlugin)
@@ -42,10 +42,10 @@ lazy val reactivecouchbase = (project in file("."))
     releaseProcess := Seq[ReleaseStep](
       checkSnapshotDependencies, // : ReleaseStep
       inquireVersions, // : ReleaseStep
-      runClean,        // : ReleaseStep
+      runClean, // : ReleaseStep
       setReleaseVersion, // : ReleaseStep
       commitReleaseVersion, // : ReleaseStep, performs the initial git checks
-      tagRelease,           // : ReleaseStep
+      tagRelease, // : ReleaseStep
       setNextVersion, // : ReleaseStep
       commitNextVersion, // : ReleaseStep
       pushChanges // : ReleaseStep, also checks that an upstream branch is properly configured
@@ -77,7 +77,7 @@ lazy val publishSettings =
   if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
     publishCommonsSettings ++ Seq(
       bintrayOrganization := Some("mathieuancelin"),
-      bintrayRepository   := "reactivecouchbase-maven",
+      bintrayRepository := "reactivecouchbase-maven",
       pomIncludeRepository := { _ =>
         false
       }
