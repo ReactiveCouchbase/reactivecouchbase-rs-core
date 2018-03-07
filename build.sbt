@@ -1,63 +1,75 @@
-name := "reactivecouchbase-rs-core"
-organization := "org.reactivecouchbase"
-version := "1.1.1-SNAPSHOT"
-scalaVersion := "2.12.4"
-crossScalaVersions := Seq(scalaVersion.value, "2.11.11")
+import sbt.Keys.{organization, scalacOptions}
+import sbtrelease.ReleaseStateTransformations._
 
-val circeVersion = "0.9.1"
+val githubRepo = "ReactiveCouchbase/reactivecouchbase-rs-core"
+val akkaVersion = "2.5.11"    
+val circeVersion = "0.9.1"    
+val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+  Seq.empty
+} else {
+  Seq(BintrayPlugin)
+}
 
-libraryDependencies ++= Seq(
-  "com.typesafe"         % "config"                  % "1.3.3",
-  "com.couchbase.client" % "java-client"             % "2.5.5",
-  "com.typesafe.play"    %% "play-json"              % "2.6.9",
-  "com.typesafe.akka"    %% "akka-actor"             % "2.5.11",
-  "com.typesafe.akka"    %% "akka-stream"            % "2.5.11",
-  "io.circe"             %% "circe-core"             % circeVersion,
-  "io.circe"             %% "circe-generic"          % circeVersion,
-  "io.circe"             %% "circe-parser"           % circeVersion,
-  "io.circe"             %% "circe-java8"            % circeVersion,
-  "io.reactivex"         % "rxjava-reactive-streams" % "1.2.1",
-  "org.scalatest"        %% "scalatest"              % "3.0.5" % "test"
+lazy val reactivecouchbase = (project in file("."))
+  .disablePlugins(disabledPlugins: _*)
+  .settings(
+    name := "reactivecouchbase-rs-core",
+    organization := "org.reactivecouchbase",
+    version := "1.1.1-SNAPSHOT",
+    scalaVersion := "2.12.4",
+    crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
+    libraryDependencies ++= Seq(
+      "com.typesafe"         % "config"                  % "1.3.3",
+      "com.couchbase.client" % "java-client"             % "2.5.5",
+      "com.typesafe.play"    %% "play-json"              % "2.6.9",
+      "com.typesafe.akka"    %% "akka-actor"             % akkaVersion,
+      "com.typesafe.akka"    %% "akka-stream"            % akkaVersion,
+      "io.circe"             %% "circe-core"             % circeVersion,
+      "io.circe"             %% "circe-generic"          % circeVersion,
+      "io.circe"             %% "circe-parser"           % circeVersion,
+      "io.circe"             %% "circe-java8"            % circeVersion,
+      "io.reactivex"         % "rxjava-reactive-streams" % "1.2.1",
+      "org.scalatest"        %% "scalatest"              % "3.0.5" % "test"
+    ),
+    sources in (Compile, doc) := Seq.empty,
+    publishArtifact in (Compile, packageDoc) := false,
+    resolvers ++= Seq(
+      Resolver.jcenterRepo,
+      Resolver.bintrayRepo("larousso", "maven")
+    ),
+    scalafmtVersion in ThisBuild := "1.2.0"
+  )
+  .settings(publishSettings: _*)
+
+lazy val publishCommonsSettings = Seq(
+  homepage := Some(url(s"https://github.com/$githubRepo")),
+  startYear := Some(2017),
+  licenses := Seq(("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))),
+  scmInfo := Some(
+    ScmInfo(
+      url(s"https://github.com/$githubRepo"),
+      s"scm:git:https://github.com/$githubRepo.git",
+      Some(s"scm:git:git@github.com:$githubRepo.git")
+    )
+  ),
+  developers := List(
+    Developer("mathieuancelin", "Mathieu ANCELIN", "", url("https://github.com/mathieuancelin"))
+  ),
+  releaseCrossBuild := true,
+  publishMavenStyle := true,
+  publishArtifact in Test := false,
+  bintrayVcsUrl := Some(s"scm:git:git@github.com:$githubRepo.git")
 )
 
-sources in (Compile, doc) := Seq.empty
-publishArtifact in (Compile, packageDoc) := false
-
-scalafmtVersion in ThisBuild := "1.2.0"
-
-val localPublishRepo: String = "./repository"
-
-publishTo := {
-  version.value match {
-    case v if v.trim.endsWith("SNAPSHOT") =>
-      Some(Resolver.file("snapshots", new File(localPublishRepo + "/snapshots")))
-    case _ =>
-      Some(Resolver.file("releases", new File(localPublishRepo + "/releases")))
+lazy val publishSettings =
+  if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
+    publishCommonsSettings ++ Seq(
+      bintrayOrganization := Some("mathieuancelin"),
+      bintrayRepository   := "reactivecouchbase-maven",
+      pomIncludeRepository := { _ =>
+        false
+      }
+    )
+  } else {
+    publishCommonsSettings
   }
-}
-
-publishMavenStyle := true
-publishArtifact in Test := false
-pomIncludeRepository := { _ =>
-  false
-}
-pomExtra :=
-  <url>https://github.com/ReactiveCouchbase/reactivecouchbase-rs-core</url>
-  <licenses>
-    <license>
-      <name>Apache 2</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-  <scm>
-    <url>git@github.com:ReactiveCouchbase/reactivecouchbase-rs-core.git</url>
-    <connection>scm:git:git@github.com:ReactiveCouchbase/reactivecouchbase-rs-core.git</connection>
-  </scm>
-  <developers>
-    <developer>
-      <id>mathieu.ancelin</id>
-      <name>Mathieu ANCELIN</name>
-      <url>https://github.com/mathieuancelin</url>
-    </developer>
-  </developers>

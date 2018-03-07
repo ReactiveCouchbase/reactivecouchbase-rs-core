@@ -1,13 +1,26 @@
 language: scala
 
+sudo: true
+
 git:
   depth: 1
 
 jdk:
-   - oraclejdk8
+  - oraclejdk8
 
 scala:
-   - 2.12.2
+  - "2.12.4"
+
+services:
+  - docker
+
+before_install:
+  - sudo apt-get install curl
 
 script:
-   - sbt ';clean;+compile'
+  - sh ./scripts/build.sh
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
