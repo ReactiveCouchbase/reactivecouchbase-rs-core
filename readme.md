@@ -7,9 +7,11 @@ Yes, it's happening !!! with **ReactiveStreams** support ;-)
 add a resolver to your `build.sbt` file
 
 ```scala
-resolvers += "reactivecouchbase-rs-snapshots" at "https://raw.github.com/ReactiveCouchbase/reactivecouchbase-rs-core/master/repository/snapshots"
+Resolver.bintrayRepo("mathieuancelin", "reactivecouchbase-maven")
 
-resolvers += "reactivecouchbase-rs-releases" at "https://raw.github.com/ReactiveCouchbase/reactivecouchbase-rs-core/master/repository/releases"
+or
+
+Resolver.jcenterRepo
 ```
 
 or you can build it to get the nice goodies
@@ -23,13 +25,13 @@ sbt ';clean;compile;publish-local'
 then in your project add the following dependency
 
 ```scala
-libraryDependencies += "org.reactivecouchbase" %% "reactivecouchbase-rs-core" % "1.0.0"
+libraryDependencies += "org.reactivecouchbase" %% "reactivecouchbase-rs-core" % "1.2.0"
 ```
 
 or if you want to use the lastest goodies 
 
 ```scala
-libraryDependencies += "org.reactivecouchbase" %% "reactivecouchbase-rs-core" % "1.0.1-SNAPSHOT"
+libraryDependencies += "org.reactivecouchbase" %% "reactivecouchbase-rs-core" % "1.2.1-SNAPSHOT"
 ```
 
 and you're ready to go
@@ -255,7 +257,7 @@ implicit val format2: JsonFormat[TestModel] = createCBFormat
 
 ## Todo
 
-* separate play-json and circe in modules ?
+* [ ] separate play-json and circe in modules ?
 
 ## Release
 
