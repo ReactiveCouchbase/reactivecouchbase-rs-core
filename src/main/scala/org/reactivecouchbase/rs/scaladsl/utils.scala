@@ -7,7 +7,7 @@ import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
 import rx.functions.{Action0, Action1, Func1}
 
 object TypeUtils {
-  type EnvCustomizer = DefaultCouchbaseEnvironment.Builder => DefaultCouchbaseEnvironment.Builder
+  type EnvCustomizer     = DefaultCouchbaseEnvironment.Builder => DefaultCouchbaseEnvironment.Builder
   type ClusterCustomizer = CouchbaseCluster => CouchbaseCluster
 }
 

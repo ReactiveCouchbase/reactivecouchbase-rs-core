@@ -7,17 +7,17 @@ crossScalaVersions := Seq(scalaVersion.value, "2.11.11")
 val circeVersion = "0.9.1"
 
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.3.3",
-  "com.couchbase.client" % "java-client" % "2.5.5",
-  "com.typesafe.play" %% "play-json" % "2.6.9",
-  "com.typesafe.akka" %% "akka-actor" % "2.5.11",
-  "com.typesafe.akka" %% "akka-stream" % "2.5.11",
-  "io.circe" %% "circe-core" % circeVersion,
-  "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser" % circeVersion,
-  "io.circe" %% "circe-java8" % circeVersion,
-  "io.reactivex" % "rxjava-reactive-streams" % "1.2.1",
-  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+  "com.typesafe"         % "config"                  % "1.3.3",
+  "com.couchbase.client" % "java-client"             % "2.5.5",
+  "com.typesafe.play"    %% "play-json"              % "2.6.9",
+  "com.typesafe.akka"    %% "akka-actor"             % "2.5.11",
+  "com.typesafe.akka"    %% "akka-stream"            % "2.5.11",
+  "io.circe"             %% "circe-core"             % circeVersion,
+  "io.circe"             %% "circe-generic"          % circeVersion,
+  "io.circe"             %% "circe-parser"           % circeVersion,
+  "io.circe"             %% "circe-java8"            % circeVersion,
+  "io.reactivex"         % "rxjava-reactive-streams" % "1.2.1",
+  "org.scalatest"        %% "scalatest"              % "3.0.5" % "test"
 )
 
 sources in (Compile, doc) := Seq.empty
@@ -30,8 +30,7 @@ val localPublishRepo: String = "./repository"
 publishTo := {
   version.value match {
     case v if v.trim.endsWith("SNAPSHOT") =>
-      Some(
-        Resolver.file("snapshots", new File(localPublishRepo + "/snapshots")))
+      Some(Resolver.file("snapshots", new File(localPublishRepo + "/snapshots")))
     case _ =>
       Some(Resolver.file("releases", new File(localPublishRepo + "/releases")))
   }

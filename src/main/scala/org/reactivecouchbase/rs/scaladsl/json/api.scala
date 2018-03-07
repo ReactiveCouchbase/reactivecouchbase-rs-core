@@ -37,7 +37,7 @@ trait JsonFormat[A] extends JsonWrites[A] with JsonReads[A]
 object JsonFormat {
   def apply[A](fjs: JsonReads[A], tjs: JsonWrites[A]): JsonFormat[A] = new JsonFormat[A] {
     def reads(json: ByteString) = fjs.reads(json)
-    def writes(o: A) = tjs.writes(o)
+    def writes(o: A)            = tjs.writes(o)
   }
 }
 
@@ -53,7 +53,7 @@ trait QueryParams {
 }
 
 object EmptyQueryParam extends QueryParams {
-  override def isEmpty: Boolean = true
+  override def isEmpty: Boolean         = true
   override def toJsonObject: JsonObject = JsonObject.empty()
 }
 
@@ -62,28 +62,36 @@ sealed trait JsonResult[+A] { self =>
   def isSuccess: Boolean
 
   def isError: Boolean
-  
+
   def map[B](f: A => B): JsonResult[B]
-  
+
   def flatMap[B](f: A => JsonResult[B]): JsonResult[B]
-  
+
   def foreach(f: A => Unit): Unit
 
   def filterNot(error: JsonError)(p: A => Boolean): JsonResult[A] =
-    flatMap { a => if (p(a)) error else JsonSuccess(a) }
+    flatMap { a =>
+      if (p(a)) error else JsonSuccess(a)
+    }
 
   def filterNot(p: A => Boolean): JsonResult[A] =
-    flatMap { a => if (p(a)) JsonError() else JsonSuccess(a) }
+    flatMap { a =>
+      if (p(a)) JsonError() else JsonSuccess(a)
+    }
 
   def filter(p: A => Boolean): JsonResult[A] =
-    flatMap { a => if (p(a)) JsonSuccess(a) else JsonError() }
+    flatMap { a =>
+      if (p(a)) JsonSuccess(a) else JsonError()
+    }
 
   def filter(otherwise: JsonError)(p: A => Boolean): JsonResult[A] =
-    flatMap { a => if (p(a)) JsonSuccess(a) else otherwise }
+    flatMap { a =>
+      if (p(a)) JsonSuccess(a) else otherwise
+    }
 
   def collect[B](otherwise: JsonValidationError)(p: PartialFunction[A, B]): JsonResult[B] = flatMap {
     case t if p.isDefinedAt(t) => JsonSuccess(p(t))
-    case _ => JsonError(Seq(otherwise))
+    case _                     => JsonError(Seq(otherwise))
   }
 
   def get: A
@@ -91,11 +99,11 @@ sealed trait JsonResult[+A] { self =>
   def getOrElse[AA >: A](t: => AA): AA
 
   def orElse[AA >: A](t: => JsonResult[AA]): JsonResult[AA]
-  
+
   def asOpt: Option[A]
 
   def asEither: Either[Seq[JsonValidationError], A]
-  
+
   def recover[AA >: A](errManager: PartialFunction[JsonError, AA]): JsonResult[AA]
 
   def recoverTotal[AA >: A](errManager: JsonError => AA): AA
@@ -150,11 +158,12 @@ case class JsonError(errors: Seq[JsonValidationError] = Seq.empty[JsonValidation
 
   override def asEither: Either[Seq[JsonValidationError], Nothing] = Left(errors)
 
-  override def recover[AA >: Nothing](errManager: PartialFunction[JsonError, AA]): JsonResult[AA] = if (errManager.isDefinedAt(this)) {
-    JsonSuccess(errManager.apply(this))
-  } else {
-    JsonError(errors)
-  }
+  override def recover[AA >: Nothing](errManager: PartialFunction[JsonError, AA]): JsonResult[AA] =
+    if (errManager.isDefinedAt(this)) {
+      JsonSuccess(errManager.apply(this))
+    } else {
+      JsonError(errors)
+    }
 
   override def recoverTotal[AA >: Nothing](errManager: (JsonError) => AA): AA = errManager(this)
 }

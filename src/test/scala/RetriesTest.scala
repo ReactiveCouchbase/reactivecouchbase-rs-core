@@ -8,12 +8,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 /**
-  * Test suite for retries.
-  */
+ * Test suite for retries.
+ */
 class RetriesTest extends FlatSpec with ScalaFutures with MustMatchers with BeforeAndAfterAll {
 
-  val actorSystem = ActorSystem()
-  implicit val ec = actorSystem.dispatcher
+  val actorSystem    = ActorSystem()
+  implicit val ec    = actorSystem.dispatcher
   implicit val sched = actorSystem.scheduler
 
   def doSomethingGood(): Future[String] = {

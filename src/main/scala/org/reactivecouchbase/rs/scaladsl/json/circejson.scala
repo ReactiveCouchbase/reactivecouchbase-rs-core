@@ -24,11 +24,11 @@ package object circejson {
   implicit val defaultCirceFormat: JsonFormat[Json] = JsonFormat(defaultCirceReads, defaultCirceWrites)
 
   /**
-    * Converts between io.circe.Json and org.reactivecouchbase.rs.scaladsl.json objects
-    * @param encoder [[https://circe.github.io/circe/codec.html#custom-encodersdecoders Encoder]] for ModelType
-    * @param decoder [[https://circe.github.io/circe/codec.html#custom-encodersdecoders Decoder]] for ModelType
-    * @return JsonFormat[MODELTYPE]
-    * */
+   * Converts between io.circe.Json and org.reactivecouchbase.rs.scaladsl.json objects
+   * @param encoder [[https://circe.github.io/circe/codec.html#custom-encodersdecoders Encoder]] for ModelType
+   * @param decoder [[https://circe.github.io/circe/codec.html#custom-encodersdecoders Decoder]] for ModelType
+   * @return JsonFormat[MODELTYPE]
+   * */
   def createCBFormat[MODELTYPE](implicit encoder: Encoder[MODELTYPE],
                                 decoder: Decoder[MODELTYPE]): JsonFormat[MODELTYPE] =
     JsonFormat[MODELTYPE](

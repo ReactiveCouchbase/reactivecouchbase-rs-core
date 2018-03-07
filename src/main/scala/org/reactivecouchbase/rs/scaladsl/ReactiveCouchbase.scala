@@ -12,13 +12,19 @@ class ReactiveCouchbase(val config: Config) {
 
   private val pool = new ConcurrentHashMap[String, Bucket]()
 
-  def bucket(name: String, env: EnvCustomizer = identity, cluster: ClusterCustomizer = identity, defaultTimeout: Option[Duration] = None): Bucket = {
+  def bucket(name: String,
+             env: EnvCustomizer = identity,
+             cluster: ClusterCustomizer = identity,
+             defaultTimeout: Option[Duration] = None): Bucket = {
     pool.computeIfAbsent(name, JavaUtils.function { key =>
       Bucket(BucketConfig(config.getConfig(s"buckets.$key"), env, cluster, defaultTimeout), () => pool.remove(name))
     })
   }
 
-  def configureAndPoolBucket(name: String, env: EnvCustomizer, cluster: ClusterCustomizer, defaultTimeout: Option[Duration] = None): Unit = {
+  def configureAndPoolBucket(name: String,
+                             env: EnvCustomizer,
+                             cluster: ClusterCustomizer,
+                             defaultTimeout: Option[Duration] = None): Unit = {
     pool.computeIfAbsent(name, JavaUtils.function { key =>
       Bucket(BucketConfig(config.getConfig(s"buckets.$key"), env, cluster, defaultTimeout), () => pool.remove(name))
     })

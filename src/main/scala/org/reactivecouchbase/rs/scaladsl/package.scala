@@ -10,11 +10,13 @@ import scala.concurrent.duration._
 package object scaladsl {
 
   type ExecCtx[_] = ExecutionContext
-  type Mat[_] = Materializer
+  type Mat[_]     = Materializer
 
   val InfiniteExpiry: Duration = Duration.Inf
 
-  case object ObservableCompletedWithoutValue extends RuntimeException("Observable should have produced at least a value ...") with NoStackTrace
+  case object ObservableCompletedWithoutValue
+      extends RuntimeException("Observable should have produced at least a value ...")
+      with NoStackTrace
 
   implicit class EnhancedObservable[T](val obs: Observable[T]) extends AnyVal {
     def asFuture: Future[T] = {
@@ -32,12 +34,12 @@ package object scaladsl {
     }
 
     /**
-      * Applies a timeout given Some[Duration], otherwise does nothing
-      *
-      * @param timeout: Optional [[scala.concurrent.duration.Duration]]
-      *
-      * @return obs Observable[T]
-      * */
+     * Applies a timeout given Some[Duration], otherwise does nothing
+     *
+     * @param timeout: Optional [[scala.concurrent.duration.Duration]]
+     *
+     * @return obs Observable[T]
+     * */
     def maybeTimeout(timeout: Option[Duration]): Observable[T] =
       timeout.map(to => obs.timeout(to.length, to.unit)).getOrElse(obs)
   }
@@ -46,8 +48,8 @@ package object scaladsl {
     def asCouchbaseExpiry: Int = {
       duration match {
         case Duration.Zero => 0
-        case Duration.Inf => 0
-        case _ => 
+        case Duration.Inf  => 0
+        case _ =>
           val start = if (duration < 30.days) 0L else System.currentTimeMillis / 1000L
           (start + duration.toSeconds).toInt
       }
