@@ -895,7 +895,7 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
   def search[T](
       query: QueryLike,
       timeout: Option[Duration] = config.defaultTimeout
-  )(implicit ec: ExecutionContext, mat: Materializer, reader: JsonReads[T]): QueryResult[T, NotUsed] =
+  )(implicit ec: ExecutionContext, mat: Materializer, reader: JsonReads[T]): QueryResult[T, NotUsed] = {
     query match {
       case N1qlQuery(n1ql, args) if args.isEmpty =>
         searchNativeQuery(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
@@ -903,8 +903,8 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
       case N1qlQuery(n1ql, args) if args.nonEmpty =>
         val params: JsonObject = args.toJsonObject
         searchNativeQuery(com.couchbase.client.java.query.N1qlQuery.parameterized(n1ql, params))
-
     }
+  }
 
 
   def searchNativeQuery[T](
@@ -924,6 +924,45 @@ class Bucket(config: BucketConfig, onStop: () => Unit) {
                 throw new RuntimeException(s"Error while parsing document : $e") // TODO : better error
             }
           })
+      }
+      Source.fromPublisher[T](RxReactiveStreams.toPublisher[T](obs))
+    })
+  }
+
+  private[reactivecouchbase] def _old_search[T](
+    query: QueryLike,
+    timeout: Option[Duration] = config.defaultTimeout
+  )(implicit ec: ExecutionContext, mat: Materializer, reader: JsonReads[T]): QueryResult[T, NotUsed] = {
+    SimpleQueryResult(() => {
+      val obs: Observable[T] = query match {
+       case N1qlQuery(n1ql, args) if args.isEmpty => {
+         _asyncBucket
+           .query(com.couchbase.client.java.query.N1qlQuery.simple(n1ql))
+           .maybeTimeout(timeout)
+           .flatMap(RxUtils.func1(_.rows()))
+           .map(RxUtils.func1 { t =>
+             reader.reads(ByteString(t.byteValue())) match {
+               case JsonSuccess(s) => s
+               case JsonError(e) =>
+                 throw new RuntimeException(s"Error while parsing document : $e from query $n1ql") // TODO : better error
+             }
+           })
+       }
+       case N1qlQuery(n1ql, args) if args.nonEmpty => {
+         val params: JsonObject = args.toJsonObject
+         _asyncBucket
+           .query(com.couchbase.client.java.query.N1qlQuery.parameterized(n1ql, params))
+           .maybeTimeout(timeout)
+           .flatMap(RxUtils.func1(_.rows()))
+           .map(RxUtils.func1 { t =>
+             reader.reads(ByteString(t.byteValue())) match {
+               case JsonSuccess(s) => s
+               case JsonError(e) =>
+                 throw new RuntimeException(s"Error while parsing document : $e") // TODO : better error
+             }
+           })
+       }
+       case _ => Observable.error(new UnsupportedOperationException("Query not supported !"))
       }
       Source.fromPublisher[T](RxReactiveStreams.toPublisher[T](obs))
     })

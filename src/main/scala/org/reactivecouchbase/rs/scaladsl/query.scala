@@ -3,13 +3,8 @@ package org.reactivecouchbase.rs.scaladsl
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import com.couchbase.client.java.document.RawJsonDocument
-import com.couchbase.client.java.view.{
-  AsyncSpatialViewRow,
-  AsyncViewRow,
-  SpatialViewQuery => CouchbaseSpatialViewQuery,
-  ViewQuery => CouchbaseViewQuery
-}
+import com.couchbase.client.java.document.{JsonDocument, RawJsonDocument}
+import com.couchbase.client.java.view.{AsyncSpatialViewRow, AsyncViewRow, SpatialViewQuery => CouchbaseSpatialViewQuery, ViewQuery => CouchbaseViewQuery}
 import org.reactivecouchbase.rs.scaladsl.json.{CouchbaseJsonDocConverter, EmptyQueryParam, JsonReads, QueryParams}
 import org.reactivestreams.Publisher
 
@@ -35,7 +30,7 @@ case class SpatialViewRow[T](underlying: AsyncSpatialViewRow, reader: JsonReads[
   def key[A](implicit converter: CouchbaseJsonDocConverter[A])   = converter.convertTo(underlying.key())
   def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convertTo(underlying.value())
   def doc(implicit ec: ExecutionContext): Future[ByteString] =
-    underlying.document(classOf[RawJsonDocument]).asFuture.filter(_ != null).map(a => ByteString(a.content()))
+    underlying.document().asFuture.filter(_ != null).map(a => ByteString(a.content().toString))
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 
@@ -54,7 +49,7 @@ case class ViewRow[T](underlying: AsyncViewRow, reader: JsonReads[T]) {
   def key[A](implicit converter: CouchbaseJsonDocConverter[A])   = converter.convertTo(underlying.key())
   def value[A](implicit converter: CouchbaseJsonDocConverter[A]) = converter.convertTo(underlying.value())
   def doc(implicit ec: ExecutionContext): Future[ByteString] =
-    underlying.document(classOf[RawJsonDocument]).asFuture.filter(_ != null).map(a => ByteString(a.content()))
+    underlying.document().asFuture.filter(_ != null).map(a => ByteString(a.content().toString))
   def typed(implicit ec: ExecutionContext): Future[T] = doc.map(j => reader.reads(j).get)
 }
 

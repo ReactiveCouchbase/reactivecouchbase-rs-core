@@ -1,3 +1,5 @@
+package org.reactivecouchbase.rs.tests
+
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.Duration
@@ -19,6 +21,6 @@ object TestImplicits {
   }
 
   implicit class EnhancedFuture[T](fu: Future[T]) {
-    def await: T = Await.result(fu, Duration(10, TimeUnit.SECONDS))
+    def await: T = Await.result(fu, Duration(30, TimeUnit.SECONDS))
   }
 }

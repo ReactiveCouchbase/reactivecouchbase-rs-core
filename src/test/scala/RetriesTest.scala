@@ -1,3 +1,5 @@
+package org.reactivecouchbase.rs.tests
+
 import akka.actor.ActorSystem
 import org.reactivecouchbase.rs.scaladsl.CannotRetryException
 import org.reactivecouchbase.rs.scaladsl.Retries._

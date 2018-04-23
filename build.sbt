@@ -2,8 +2,8 @@ import sbt.Keys.{organization, scalacOptions}
 import sbtrelease.ReleaseStateTransformations._
 
 lazy val githubRepo   = "ReactiveCouchbase/reactivecouchbase-rs-core"
-lazy val akkaVersion  = "2.5.11"
-lazy val circeVersion = "0.9.1"
+lazy val akkaVersion  = "2.5.12"
+lazy val circeVersion = "0.9.3"
 lazy val disabledPlugins = if (sys.env.get("TRAVIS_TAG").filterNot(_.isEmpty).isDefined) {
   Seq.empty
 } else {
@@ -35,7 +35,7 @@ lazy val reactivecouchbase = (project in file("."))
     publishArtifact in (Compile, packageDoc) := false,
     resolvers ++= Seq(
       Resolver.jcenterRepo,
-      Resolver.bintrayRepo("larousso", "maven")
+      Resolver.bintrayRepo("mathieuancelin", "reactivecouchbase-maven")
     ),
     scalafmtVersion in ThisBuild := "1.2.0",
     releaseProcess := Seq[ReleaseStep](
